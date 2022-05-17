@@ -1,8 +1,3 @@
-if { $tcl_platform(pointerSize) == 8} {
-    lappend auto_path {C:\tclf\tclpkgs64}
-} else {
-    lappend auto_path {C:\tclf\tclpkgs}
-}
 package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
