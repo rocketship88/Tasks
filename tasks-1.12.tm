@@ -1,8 +1,13 @@
+if { $tcl_platform(pointerSize) == 8} {
+    lappend auto_path {C:\tclf\tclpkgs64}
+} else {
+    lappend auto_path {C:\tclf\tclpkgs}
+}
 package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.12
+################################################# Tasks version 1.13
 namespace eval tasks {  
 proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget from a Task (a thread)
 ##########################################
@@ -68,6 +73,7 @@ proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget
 #   error "dotk= |$dotk| dodebugging= |$dodebugging| tdebug= |$tdebug| color= |$color| debug= |$debug| ::t_debug= |$::t_debug| "
 #   return  ;# to turn off debugging putz calls always
     if { $debug  eq "debug" && $dodebugging == 0} {
+#       puts "we are returning with     $arg"
         return  
     }
     if { $dotk == 0 } {
@@ -77,6 +83,7 @@ proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget
         if { $color ne "normal" && $::tcl_platform(platform) eq "windows"} {
             set io stderr
         }
+#       puts "trying to send it"
 #       tsv::set tvar $::t_name,user4 $mid
 
         if { $::tcl_platform(platform) eq "windows" } {
@@ -125,24 +132,26 @@ proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget
         pack .taskdebug.fffff.cbcbcb1 -side right -fill y
         
         set ::t_putz_output 1
-        checkbutton .taskdebug.fffff.cbcbcb2 -variable ::t_putz_output -text "putz output" 
+        checkbutton .taskdebug.fffff.cbcbcb2 -variable ::t_putz_output -text "putz output"
         pack .taskdebug.fffff.cbcbcb2 -side right -fill y
-        
-        .taskdebug.ttttt tag configure debug              -foreground black -selectbackground lightblue
-        .taskdebug.ttttt tag configure normal             -foreground black -selectbackground lightblue
-        .taskdebug.ttttt tag configure green              -foreground \#408f40 -background \#e8e8e8 -font {courier 10 bold} -selectbackground lightblue
-        .taskdebug.ttttt tag configure white              -foreground white -background black  -font {courier 10 bold} -selectbackground lightblue
-        .taskdebug.ttttt tag configure yellowonblack      -foreground yellow -background black -font {courier 10 bold} -selectbackground red
+        set back grey30
+        set fore white
+        .taskdebug.ttttt tag configure debug              -foreground black -selectbackground $back -selectforeground $fore
+        .taskdebug.ttttt tag configure normal             -foreground black -selectbackground $back -selectforeground $fore
+        .taskdebug.ttttt tag configure green              -foreground \#408f40 -background \#e8e8e8 -font {courier 10 bold} -selectbackground $back -selectforeground $fore
+        .taskdebug.ttttt tag configure white              -foreground white -background black  -font {courier 10 bold} -selectbackground $back -selectforeground $fore
+        .taskdebug.ttttt tag configure yellowonblack      -foreground yellow -background black -font {courier 10 bold} -selectbackground $back -selectforeground $fore
         .taskdebug.ttttt tag configure yellow             -foreground yellow -background red -selectbackground blue
         .taskdebug.ttttt tag configure whiteonred         -foreground white -background red -font {courier 10 bold} -selectbackground black
         .taskdebug.ttttt tag configure rederror           -foreground red -background grey85 -font {courier 15 bold italic} -selectbackground black
-        .taskdebug.ttttt tag configure red                -foreground red -font {courier 10} -selectbackground lightblue
+        .taskdebug.ttttt tag configure red                -foreground red -font {courier 10} -selectbackground $back -selectforeground $fore
     }
     if [catch {
         .taskdebug.ttttt insert end $arg\n $color
         .taskdebug.ttttt see end
         update
     } err_code] {
+#       puts $err_code 
     }
 }
 
@@ -186,9 +195,11 @@ proc tname {tid} {              ;# shorthand to get the taskname given a Task id
 }
 ################################################# get or set by taskname and parm
 proc tset {name parm {arg {GwY6itRvUgUNuTg2WfS3xyz123}}} {  ;# shorthand to get or set a shared variable given a Task name and element (optional value)
+#   puts "name= |$name| parm= |$parm| "
     set items [list tid pid result script mutex gvar cond queue count error share user putz]
     
     if { $arg != {GwY6itRvUgUNuTg2WfS3xyz123} } {
+#       puts "set $name($parm) with arg = $arg"
         foreach item $items {
             if { $parm eq $item } {
                 return [tsv::set tvar $name,$item $arg]
@@ -201,6 +212,7 @@ proc tset {name parm {arg {GwY6itRvUgUNuTg2WfS3xyz123}}} {  ;# shorthand to get 
             }   
         }
     }
+#   puts  "unknown item $parm"
 }
 #proc tget/tset alias           -----------------------------------------------------------
 #interp alias {} tget {} tset
@@ -220,6 +232,7 @@ proc tdump {{pat .*} {max 90}} {         ;# dump all the shared Task variables
     if { $all } {
         putz "\n------ Task(s) dump -----------------------------------------"
         putz "tsv::names  = |[tsv::names *]|"
+#       putz "tsv::tvar   = |[tsv::array names tvar *]|"
         putz "tsv::tids   = |[tsv::array names tids *]|"
         putz "---------------------------------------------------------------"
     }
@@ -259,6 +272,7 @@ proc Task {name0 args} {        ;# create a Task
     set donamespace 1           ;# assume we want to use namespaces, so we import by namespace
     set do_min_import 0
     while 1 {
+#       puts " - args= |$args| " ; update
         if {        [lindex $args 0] eq "-once" } {
             set dowhile 0
             set args [lrange $args 1 end]   ;# shift over the first item in args if -once is the next one
@@ -278,6 +292,9 @@ proc Task {name0 args} {        ;# create a Task
     } elseif { $len == 1 } {
         set args [list {} [lindex $args 0 ]]
     }
+#   puts "dowhile= |$dowhile|  "
+#   puts "import = |$donamespace|  "
+#   puts "do_min_import= |$do_min_import| "
     set names [split $name0 /]
     if { [llength $names] == 1 } {
         set name $name0
@@ -291,6 +308,7 @@ proc Task {name0 args} {        ;# create a Task
     }
 #    if { [info exist ::t_debug] && $::t_debug } {
 #        if [catch {
+#            puts "Task: name= |$name| sname= |$sname| name0= |$name0| names= |$names| share= |$share| args(end-1)= |[lrange $args end-1 end-1]|"
 #        } err_code] {
 #            catch {putz "Task: name= |$name| sname= |$sname| name0= |$name0| names= |$names| share= |$share| args(end-1)= |[lrange $args end-1 end-1]|"}
 #        }
@@ -328,6 +346,7 @@ proc Task {name0 args} {        ;# create a Task
         set dw1 ""
         set dw2 ""
     }
+#   puts "dw1= |$dw1| dw2= |$dw2| "
     set e1 "if \[catch \{$dw1"  ;# enclose script in a catch, and a while (unless suppressed with the option)
     
     set e2a "\n\}$dw2 thread_err_code thread_err_dict\] \{\n    tsv::set tvar $name,error \$thread_err_dict  \n"
@@ -337,6 +356,7 @@ proc Task {name0 args} {        ;# create a Task
     set e2 ""
     append e2 $e2a $e2b $e2c
     
+#   puts "$e1----\n----$e2"
     if { $do_min_import } {
         set autoimport [list ::tasks::treturn ::tasks::twait ]
     } else {
@@ -365,12 +385,15 @@ proc Task {name0 args} {        ;# create a Task
         append script "set ::___tlg___  \[info globals\] ;lappend ___tlg___  ___tlg___ tk_library tk_patchLevel tk_strictMotif tk_version\n"
         append script "\n#end preamble\n" "\n#included procs/cmds: import list: \{$prefix0\}\n\n" [tproc {*}$prefix] $script0
         
+#       puts "2 args with prefix $prefix --------------------------------"
     } elseif { [llength $args] == 1 } {
         lassign $args script0
         append script $preamble  "\n#end preamble\n" "\n#included procs: none\n\n"  $script0 
+#       puts "1 args ----------------------------------------"
     } else {
         error "Wrong number of args to task (or mispelled -option): $args"
     }
+#   puts stderr "script= \n|\n$script| the parent me= |$me| "
 
     set script0 "" ;# place another if/catch around the entire script, to catch things like namespace eval missing
     append script0 "if \[catch \{\n" $script "\n" "\} err_code_Task_Create\] \{ " "\n" "    tsv::set tvar $name,error \$err_code_Task_Create\n    package require Tk; tk_messageBox -title {Task create error} -message \$err_code_Task_Create\n\}"  
@@ -404,10 +427,13 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
                 } else {
                     if { $once_tasks } {
                         append output "namespace eval $nq {namespace export *} ;# do this one time for tasks\n" ;# output this only once
+#                       puts stderr "output tasks import just once"
                         set once_tasks 0
                     }
                 }
+#               puts "$arg is a namespace nq= |$nq| nqe= |$nqe| arg= |$arg| "
             } else {
+#               puts "$arg is NOT a namespace nq= |$nq| nqe= |$nqe| arg= |$arg| "
             }
             foreach proc [info procs ::$arg] {
                 set found 1
@@ -443,6 +469,7 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
     return $out
 }
 proc treturn {args} {           ;# return the value from a Task
+#   putz "treturn args= |$args| "
 #    set exiting no
 #    if { [llength $args ] > 0} {
 #        if       { [lindex $args 0] eq "-exit"} {
@@ -458,11 +485,13 @@ proc treturn {args} {           ;# return the value from a Task
         tsv::set    tvar        $name,result    $args
         set gvar    [tsv::get   tvar            $name,gvar]
         
+#       putz "+++rvalue= |$rvalue| exiting= |$exiting| me= |$me| name= |$name| pid= |$pid| gvar= |$gvar| "
         if { $args == {} } {
             thread::send $pid [list set ::$gvar $rvalue]    ;# to allow for an empty return value
         } else {
             thread::send $pid "set ::$gvar $rvalue"         ;# to allow for a simple text string or a [list]
         }
+#       putz "sent the return value $rvalue to $gvar"
         
     } err_code] {
         putz $err_code
@@ -471,7 +500,9 @@ proc treturn {args} {           ;# return the value from a Task
 
 #################################################
 proc tcall {taskid args} {      ;# call a Task, sync or asyn
+#   puts "Taskid= |$taskid| args= |$args| "
     if { $taskid eq "-async" } { ;# allow -async to precede the taskid (thread id) for consistency with thread::send
+#       puts "taskid= |$taskid| args= |$args| "
         tailcall tcall [lindex $args 0] -async {*}[lrange $args 1 end]
     }
     if [catch {
@@ -498,10 +529,12 @@ proc tcall {taskid args} {      ;# call a Task, sync or asyn
             set args [lrange $args 1 end]
         }
     }
+#    puts "1 args= |$args| taskid= |$taskid| name= |$name| "
     set a1 [string range [lindex $args 1 ] 0 1]
     if { $a1 eq "<-" } {
         set args [lreplace $args 1 1]
     }
+#    puts "2 args= |$args| taskid= |$taskid| name= |$name| "
     if { [llength $args ] > 0} {
         set theglobal   [lindex $args 0]
         set args        [lrange $args 1 end]
@@ -509,10 +542,12 @@ proc tcall {taskid args} {      ;# call a Task, sync or asyn
         error "tcall missing the argument for global variable"
     }
     if { [string range $theglobal 0 1] ne "::" } {
+#       puts stderr "added :: to $theglobal"
         set theglobal "::$theglobal"
     }
 #   global $theglobal
     unset -nocomplain $theglobal
+#   puts "$theglobal exists [info exists $theglobal]"
     
 #   thread::send ?-async? ?-head? id script ?varname?
 #   return
@@ -524,6 +559,7 @@ proc tcall {taskid args} {      ;# call a Task, sync or asyn
     
 #   tsv::set tvar $name,gvar $theglobal ;################## the problem
     
+#   puts "send args = |$argsx|  mutex= |$mutex| cond= |$cond| "
     
     thread::mutex   lock    $mutex
     tsv::lpush      tvar    $name,queue $argsx end
@@ -532,6 +568,7 @@ proc tcall {taskid args} {      ;# call a Task, sync or asyn
     
     if { $async } {
         if [catch {
+#           puts "send  $name  $taskid   args -async = |$args|" ;# this will fail if we were not called by the main thread
         } err_code] {
             putz "async cannot use puts here $err_code" green debug
             catch {putz "send  $name  $taskid   args -async = |$args|"} ;# try again but to the thread instead
@@ -549,6 +586,7 @@ proc tcall {taskid args} {      ;# call a Task, sync or asyn
 }
 #################################################
 proc tpause_check {args} {
+#   putz "tpause_check args= |$args| "
     set twcount 0
     if { $::t_task_pause } {
         while { $::t_task_pause } {
@@ -569,6 +607,7 @@ proc twait {args} {             ;# wait for something in the Task queue
     } else {
         set dbug [expr {   $::t_debug % 2   }] ;# optimize the debug trace when not tracing -   t_debug is 0/2 no trace, 1/3 trace  
     }
+#   putz "   inside twait for $::t_name"
 #   wait 2000
     if { [info command tpause_check] ne ""} {
         tpause_check 
@@ -576,13 +615,17 @@ proc twait {args} {             ;# wait for something in the Task queue
     if [catch {
         set mutex [tsv::get tvar $::t_name,mutex]
         set cond  [tsv::get tvar $::t_name,cond]
+#       putz "twait:    mutex= |$mutex| cond= |$cond| " normal debug
     } err_code] {
         catch {putz $err_code}
     }
+#   putz "good"
     if [catch {
         
+#       putz "about to lock $mutex"; update
 #       wait 2000
         thread::mutex lock $mutex
+#       putz "after lock"; update
 #        set count 0
         set sname [tsv::get  tvar $::t_name,share]
         if { $sname != {} } {
@@ -749,6 +792,7 @@ proc tvwait {var {tid {}}} {    ;# wait till an async Task call, with Task id ti
 ############
     
 proc tgroup {gname option args} {
+#   puts "gname= |$gname| option= |$option| args= |$args| "
     if       { $option eq "-tasks" } {
         uplevel #0 array unset $gname
         upvar #0 $gname name
@@ -800,6 +844,7 @@ proc tgroup {gname option args} {
         set numtasks $name(tasks)
         set numarglists [llength $args]
         set name(tasks) [expr {   $numarglists + $name(job)   }] ;# this is ugly, we change meaning of tasks to jobs, since -wait will still work on number of tasks
+#        puts "name(job)= |$name(job)| numarglists= |$numarglists| args= |$args| "
         if { $name(job) < 0} {
             error "Cannot mix -foreach and -call current job =  $name(job)"
         }
@@ -809,6 +854,7 @@ proc tgroup {gname option args} {
             set name(args,$job) $theargs
             set tid [tset  ${gname}0 tid]
             set tn  [tname $tid]
+#            puts "job= |$job| name(args,$job)= |$name(args,$job)| "
             set c [uplevel [list tasks::tcall $tid -async ::${gname}(rvar,$job) {*}$theargs]]
             if { $name(trace) } {
                 if {! [info exist  ::${gname}(rvar,$job)] } {
@@ -866,6 +912,7 @@ proc tgroup {gname option args} {
         lassign $args type
         if       { $type eq "all" } {
             set numtasks $name(tasks)
+#            puts "numtasks= |$numtasks| -------------------- "
             for {set job 0} {$job < $numtasks } {incr job} {
                 tvwait ::${gname}(rvar,$job)
             }
@@ -892,14 +939,17 @@ proc tgroup {gname option args} {
 
 proc Tproc {name arguments body {option -tasks} {num 4} args} {
     uplevel [list proc $name $arguments $body]
+#   puts "name= |$name| arguments= |$arguments| body= |$body| option= |$option| num= |$num| "
     if { $option ne "-tasks" } {
         error "Tproc option $option invalid, should be -tasks"
     }
     set qual "tasks::"
     set opts {}
     set ar $args
+#    puts "=====args= |$args| "
     while { 1 } {
         set ar [lassign $ar option]
+#       puts "-----ar= |$ar| option= |$option| "
         if { $option eq "-import_tasks"  || $option eq "-import"} {
             lappend opts "-import_tasks"
             set qual ""
@@ -911,9 +961,12 @@ proc Tproc {name arguments body {option -tasks} {num 4} args} {
             set ar [list $name {*}$option]
             break
         }
+#       puts "opts= |$opts| "
     }
+#   puts "opts= |$opts| ar= |$ar| "
     set targs {}
     lappend targs {*}$opts $ar
+#    puts stderr "targs= |$targs| " ; update ; puts huh
     uplevel "tasks::tgroup $name -tasks $num $targs  \{
         ${qual}twait argv
         ${qual}treturn \[$name \{*\}\$argv\]
@@ -928,6 +981,7 @@ proc repos {args} {
     if { $geomx eq "" } {
         set geomx 700x200
     }
+#   putz "geomx= |$geomx| rowsx= |$rowsx| xoffx= |$xoffx| yoffx= |$yoffx| "
     lassign [split $geomx x] xsize ysize
     if { ![string is integer -strict $xsize] || ![string is integer -strict $ysize]  } {
         error "invalid XxY (xsize by ysize) usage: repos ?XxY? ?rows? ?x-offset? ?y-offset?"
@@ -937,6 +991,7 @@ proc repos {args} {
     set ysize [expr {   max($ysize,100)   }]
     set geomx ${xsize}x${ysize}              ;# reconstruct
     
+#   putz "xsize= |$xsize| ysize= |$ysize| geomx= |$geomx|"
     if { $rowsx eq "" } {
         set rowsx   [expr {   int( 1000 / ($ysize + 40))   }]
     }
@@ -946,6 +1001,7 @@ proc repos {args} {
     if { $yoffx eq "" } {
         set yoffx [expr {   $ysize + 40   }]
     }
+#   putz "geomx= |$geomx| rowsx= |$rowsx| xoffx= |$xoffx| yoffx= |$yoffx| "
     
     
     set task -1
@@ -1050,6 +1106,7 @@ proc task_monitor {args} {
                     }
                     set w [entry $frame.path$row-$col   -textvariable ::table($row,$col) -width $wid \
                             -font [list TkTextFont $fsize] -readonlybackground {} -state normal]
+#                   puts "w= |$w| " ; update
                     set widget($row,$col) $w
                     if { $row == 0 } {
                         bind $w <Button-1>  "column_sizer 1 $col %b %W ; break"
@@ -1103,6 +1160,7 @@ proc task_monitor {args} {
             
             $fra.scframe.canvas configure -xscrollincrement 1
             $fra.scframe.canvas configure -yscrollincrement 1
+#           puts "path= |$path| "
             return $path
 #           ------------------------------------------------------------------------
         }
@@ -1243,6 +1301,7 @@ proc task_monitor {args} {
             
             # Handle mousewheel scrolling.
             ;proc scroll {path view W D} {
+#               puts "path= |$path| view= |$view| W= |$W| D= |$D| "
                 if { [winfo exists $path.canvas]  &&  [string match $path.canvas* $W] } {
                     $path.canvas $view scroll [expr {-$D}] units
                 }
@@ -1376,6 +1435,7 @@ set utility_scripts {
 #       -----------------------------------------------------------------------------------------
         
 #       ;proc xputs  {args} {
+#           putz {*}$args
 #       }
         set widths  {15   3   7     5      20     15     30    28     15    4   25  }       ;# column widths initially, user can resize
         set headers {Task row count Q-len rvar   share result error caller putz user}       ;# column headings
@@ -1449,11 +1509,14 @@ set utility_scripts {
                 continue
             }
             set geom [wm geom .top]
+#           putz "geom= |$geom| " red
             set tasks [tasks::tdump +,tid\t]
             set len [llength $tasks]
             if { $len != $ntasks } {
+#               putz "len= |$len| ntasks= |$ntasks| not equal, might need to re-create table"
                 set ntasks $len
             }
+#           putz "tasks= |$tasks| "
             
             set row 0
             foreach t $tasks {          ;# check each task for changes
@@ -1470,6 +1533,7 @@ set utility_scripts {
                     continue
                 }
                 set tname [lindex [split $t ,]   0 ]
+#               putz "tname= |$tname| "
                 set table($row,0) $tname
                 set temp [tasks::tset $tname tid]
                 if { ! [thread::exists $temp] } {
@@ -1712,8 +1776,10 @@ The mousewheel can also be used here for the up/down history.}
             proc  do_validate {action new old type widget} {
                 set temp [string map  {"\t" " "} $new]
                 if { $temp eq $new } {
+#                   putz "new one is ok |$new|"
                 } else {
                     putz "cannot have tabs in a pasted string, changing to spaces" red
+#                   putz "new one is bad |$temp|"
                     after idle [list set ::ent2 $temp]
                 }
                 $widget selection clear
@@ -1775,9 +1841,11 @@ The mousewheel can also be used here for the up/down history.}
                 set c [closeem $::ent2]
                 lassign $c out positions
                 if {! $all } {
+#                                                                                   putz "just one  out= |$out| positions= |$positions| "
                     set out [string index $out 0]
                     set positions [lindex $positions 0]
                 } else {
+#                                                                                   putz "do all"
                 }
                 set n -1
                 set before $::ent2
@@ -1786,12 +1854,15 @@ The mousewheel can also be used here for the up/down history.}
                     set ::ent2 "$::ent2$out1"
                     .f$::widget2  icursor end
                     set endstr [expr {   [string length $::ent2]-1   }]
+#                                                                                   putz "p= |$p| n=$n .. [llength $positions]  out1= |$out1| endstr= |$endstr| "
                     .f$::widget2 selection clear
                     .f$::widget2 selection from $endstr
                     .f$::widget2 selection to [expr {   $p+1   }]
                     if { $n+1 < [llength $positions] } {
+#                                                                                   putz "not on last one $n  [llength $positions]"
                         wait 150
                     } else {
+#                                                                                   putz "is the last one $n"
                     }
                 }
                 if { $before ne $::ent2 } {
@@ -1799,9 +1870,11 @@ The mousewheel can also be used here for the up/down history.}
                 }
             }
             proc do_extend {direction} {
+#                                                                                   putz "do extend called $direction"
                 if [catch {
                     set first [.f$::widget2 index sel.first]
                     set last  [.f$::widget2 index sel.last]
+#                                                                                   putz "direction= |$direction| first= |$first| last= |$last| "
                     set len [string length $::ent2]
                     if { $first < 1 || $last > $len-1 || $first >= $last } {
                         putz "Cannot extend selection (on both ends)" red
@@ -1821,10 +1894,12 @@ The mousewheel can also be used here for the up/down history.}
 proc EvalAttached {args} {
     global ent1 ent2
     set result ""
+#                                                                                   putz "Ent1= |$::ent1| ent2= |$::ent2| args= |$args|" rederror
     set use ""
     if       { $ent1 eq "" } { ;# if blank try to get mainthread tid
         if [catch {
             set use [tsv::set main mainthread]
+#                                                                                   putz "use is $use"
         } err_code] {
             error "cannot find mainthread tid: $err_code "
             return ""
@@ -1832,11 +1907,14 @@ proc EvalAttached {args} {
     } else { ;# not blank, check if a task name first, then an existing and valid tid
         if [catch {
             set use [tset $::ent1 tid] ;# is it a valid taskname
+#                                                                                   putz "got use: $use"
         } err_code] {
             if [catch {
+#                                                                                   putz "checking for exist $::ent1"
                 set atid [thread::exists $::ent1]
                 if { $atid } {
                     set use $::ent1
+#                                                                                   putz "using the tid $::ent1"
                 } else {
                     error "thread does not exist tid: $ent1"    
                 }
@@ -1846,9 +1924,13 @@ proc EvalAttached {args} {
         }
     }
     if [catch {
+#                                                                                   putz "trying it $args"
         set zzz [thread::send $use [list uplevel #0 {*}$args]]
+#                                                                                   putz "zzz= |$zzz| "
         set result $zzz
     } err_code err_dict] {
+#                                                                                   putz "the error1: $err_code"
+#                                                                                   putz "the error2: $err_dict"
         error "cannot send to $use, $err_code $err_dict"
     }
     return $result
@@ -1857,6 +1939,7 @@ proc EvalAttached {args} {
 
 proc ExpandProcname str {
     set match [EvalAttached [list info commands $str*]]
+#                                                                                   puts "match= |$match| str= |$str| "
     if {[llength $match] == 0} {
         set ns [EvalAttached \
                 "namespace children \[namespace current\] [list $str*]"]
@@ -1872,6 +1955,7 @@ proc ExpandProcname str {
     } else {
         regsub -all { } $match {\\ } match
     }
+#                                                                                   puts "match= |$match| "
     if       { [llength $match] == 1  } {
         return $match
     } elseif { [llength $match] > 1  } {
@@ -1892,11 +1976,14 @@ proc ExpandVariable str {
         ## Looks like they're trying to expand an array.
         set match [EvalAttached [list array names $ary $str*]]
         set match [lsort -dictionary $match]
+#                                                                                   puts "match1= |$match| "
         if {[llength $match] > 1} {
             set vars $ary\([ExpandBestMatch $match $str]
             foreach var $match {
+#                                                                                   puts "   var= |$var| "
                 lappend vars $ary\($var\)
             }
+#           puts "------vars= |$vars| "
             return [lrange $vars 1 end]
         } elseif {[llength $match] == 1} {
             set match $ary\($match\)
@@ -1905,11 +1992,13 @@ proc ExpandVariable str {
         ## Space transformation avoided for array names.
     } else {
         set match [EvalAttached [list info vars $str*]]
+#                                                                                   puts "match2= |$match| "
         if {[llength $match] > 1} {
             regsub -all { } [ExpandBestMatch $match $str] {\\ } str
             set match [linsert $match 0 $str]
         } else {
             regsub -all { } $match {\\ } match
+#                                                                                   puts "match after regsub= |$match| "
             return $match
         }
     }
@@ -1933,6 +2022,7 @@ proc ExpandBestMatch {l {e {}}} {
 
 proc choose {w choices {start 0} {max 20} {kind ?}} {
     unset -nocomplain ::the_choice
+#                                                                                   puts stderr "choices= |$choices|   /[lsort -dictionary $choices]/"
     catch {destroy .p}
     menu .p -tearoff 0
     update ; # <===========================================================
@@ -1948,12 +2038,14 @@ proc choose {w choices {start 0} {max 20} {kind ?}} {
         .p  add command -label "-next-" -command "set ::the_choice {-next-} " -font {arial 12}
     }
     set coords [lrange [split [wm geom .] +] 1 end]
+#                                                                                   puts "w=$w @ [winfo pointerxy $w] [winfo toplevel $w] [wm geom [winfo toplevel $w]]"
     set zzz [tk_popup .p {*}$coords 1]
 #                                                                                   update
     if {! [info exist ::the_choice] } {
         vwait  ::the_choice
     }
     return $::the_choice
+#                                                                                   puts "tk popup returns zzz= |$zzz| [info exist ::the_choice]"
     
 }
 
@@ -1969,6 +2061,7 @@ proc getchoice {w choices kind} {
     while { 1 } {
         choose $w $choices $next $max $kind
         wait 100
+#                                                                                   putz "after the choose [info exist ::the_choice]"
         if { ![info exist ::the_choice] } {
             set ::the_choice "-none-"
         }
@@ -1986,6 +2079,7 @@ proc getchoice {w choices kind} {
             break
         }
     }
+#                                                                                   puts "leaving getchoice $::the_choice"
     return $::the_choice
 }
 
@@ -1996,10 +2090,13 @@ proc do_tab {window} {                      ;# callback for a tab char
     set sym [string range $str 0 $cur-1]
     set rev [string reverse $sym]
     
+#                                                                                   puts "\ncur= |$cur| str= |$str| sym= |$sym| rev= |$rev| "
     
     regexp -nocase -linestop -lineanchor {([^\[^\\\] \t\n\r\}\{\"\$\)]*)(.)?} $rev -> result  prior
     set astr [string reverse $result]
+#                                                                                   puts "result= |$result| astr= |$astr|  prior= |$prior| "
     set pos1 [expr {   $cur - [string length $astr]   }]
+#                                                                                   puts "pos1= |$pos1| cur= |$cur| "
     if { $astr eq "" } {
         return
     }
@@ -2012,14 +2109,18 @@ proc do_tab {window} {                      ;# callback for a tab char
         } elseif {$prior eq "\[" && $kind eq "ExpandVariable"} { ;# and if it is preceeded by an open bracket, we assume it's a command
             continue
         }
+#                                                                                   putz "trying kind $kind" green
         set rep1 [$kind $astr]
         
         if { $rep1 eq ""  || [string length $rep1] < [string length $cur]} {
+#                                                                                   puts "none ($rep1) [string length $rep1] [string length $cur]"
             continue
         } elseif {[llength $rep1] == 0} {
+#                                                                                   puts "none2"
             set replacement ""
             continue
         } elseif {[llength $rep1] > 1} {
+#                                                                                   puts "more than 1: $rep1"
             set c [getchoice $window $rep1 $kind]           ;# more than 1, give user a choice
             if { $c eq "" } {
                 return
@@ -2032,6 +2133,7 @@ proc do_tab {window} {                      ;# callback for a tab char
             $window configure -bg LightGreen
             wait 250
             $window configure -bg $bg
+#                                                                                   puts "just the one $rep1"
             set replacement $rep1
             incr none
             break
@@ -2049,13 +2151,16 @@ proc do_tab {window} {                      ;# callback for a tab char
     set rlen [string length $replacement]
     set olen [string length $result]
     set move [expr {   $rlen - $olen  }]
+#                                                                                   puts "move= |$move| rlen= |$rlen| olen= |$olen| "
     $window delete 0 end
     $window insert 0 $new
     set newpos [expr {    $move + $cur   }]
     $window icursor $newpos
     if { $before ne $::ent2 } {
+#                                                                                   putz "is new:  before= |$before| ::ent2= |$::ent2| "
         history::add? .f$::widget2 $before
     } else {
+#                                                                                   putz "is same: before= |$before| ::ent2= |$::ent2| "
     }
 }
             
@@ -2084,11 +2189,14 @@ proc do_tab {window} {                      ;# callback for a tab char
                 } err_code] {
                     set atid 0
                 }
+#               putz "atid= |$atid| "
+#               putz "the list is: $::all_tasks"
                 if { ! $atid } {
                     set senders 0
                     foreach t $::all_tasks {
                         if { [string match -nocase $ent1 $t]} {
                             incr senders
+#                           putz "/$ent1/ vs /$t/ is a match"
                             putz "thread::send [tset $t tid] / $t \{$ent2\}"; 
                             if {$ent2 ne ""} {
                                 set bline ""
@@ -2102,6 +2210,7 @@ proc do_tab {window} {                      ;# callback for a tab char
                                 putz "empty not sent";set zzz ""
                             } ;
                         } else {
+#                           putz "/$ent1/ vs /$t/ is NOT a match"
                         }   
                     }
                     if { $senders == 0 } {
@@ -2127,6 +2236,7 @@ proc do_tab {window} {                      ;# callback for a tab char
             }
 
             proc do_ontop {args} { ;# toggle on top
+#               putz "in do_ontop with on top var $::Always_on_Top"
                 wm attributes . -topmost $::Always_on_Top
             }
             proc do_minimize {hide} { ;# minimize or un-minimize window
@@ -2138,6 +2248,7 @@ proc do_tab {window} {                      ;# callback for a tab char
                 .f.doit invoke
             }
             proc do_wheel {direction which} {
+#               putz "direction= |$direction| which= |$which| "
                 if { $which == 2 } {
                     focus -force .f$::widget2
                     if { $direction < 0 } {
@@ -2224,16 +2335,20 @@ proc do_tab {window} {                      ;# callback for a tab char
             
             proc do_refresh_tasks_menu {args} {
                 set tasks [tdump +,tid\t ]
+#               putz "tasks    = ($tasks)"
+#               putz "alltasks = ($::all_tasks)"
                 
                 set tt {}
                 foreach t $tasks {
                     lassign [split $t ,] name tid
+#                   putz "check from menu: name= |$name| tid= |$tid| " ;# get list in current menu, don't refresh if not changed
                     if { ($name eq "_taskmonitor" || $name eq "sendcmd" ) && ![info exist ::t_overide] } {
                         continue
                     }
                     lappend tt $name
                 }
                 if { $::all_tasks == $tt } {
+#                   putz "they are equal, we can return"
                     after 2000 do_refresh_tasks_menu
                     return
                 }
@@ -2242,10 +2357,12 @@ proc do_tab {window} {                      ;# callback for a tab char
                 set ::all_tasks {}
                 foreach t $tasks {
                     lassign [split $t ,] name tid
+#                   putz "delete from menu: name= |$name| tid= |$tid| " ;# delete all first, any not found are ignored
                     menu:delete . Task $name
                 }
                 foreach t $tasks {
                     lassign [split $t ,] name tid
+#                   putz "add to menu: name= |$name| tid= |$tid| " ;# this pass add all
                     if { ($name eq "_taskmonitor" || $name eq "sendcmd" ) && ![info exist ::t_overide] } {
                         continue
                     }
