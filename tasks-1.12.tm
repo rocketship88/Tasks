@@ -2,7 +2,7 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13
+################################################# Tasks version 1.12 (with some slight changes from 1.13)
 namespace eval tasks {  
 proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget from a Task (a thread)
 ##########################################
