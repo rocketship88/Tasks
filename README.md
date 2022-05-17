@@ -1,5 +1,5 @@
 # Tasks
-Tasks is a Tcl/Tk add on to the tcl threads package to simply using threads
+Tasks is a Tcl/Tk add on to the tcl threads package to simply using threads.
 
 Tasks are an approach to writing multi-threaded script code using the powerful and dynamic Tcl programming language. Tasks make concurrency as simple as writing a procedure [proc] with a standard arglist. 
 
