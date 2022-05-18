@@ -13,7 +13,7 @@ Tasks include development tools and a simple Tk console for debugging. Tasks are
 
 https://wiki.tcl-lang.org/page/Tasks
 
-provides all the code, documentation, examples and youtube links to videos with intros and in-depth code walkthroughs to get you going with Tasks. The code discussion block has all the code that can be copied/pasted into a file and sourced. 
+provides all the documentation, examples and youtube links to videos with intros and in-depth code walkthroughs to get you going with Tasks.
  
 Cpu core counts are on the rise. Tcl Tasks can gently ease one into concurrent programming to better utilize these new machines.
 
