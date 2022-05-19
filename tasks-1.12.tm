@@ -1959,9 +1959,9 @@ proc choose {w choices {start 0} {max 20} {kind ?}} {
 }
 
 proc getchoice {w choices kind} {
-                                                                                    putz "in getchoice: choices= |$choices|  [llength $choices]"
+                                                                                   #putz "in getchoice: choices= |$choices|  [llength $choices]"
     if { [llength $choices] == 1 } {
-                                                                                    putz "only the one: $choices"
+                                                                                   # putz "only the one: $choices"
         set ::the_choice $choices
         return $choices
     }
