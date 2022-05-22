@@ -2773,4 +2773,5 @@ proc tlg {{pat **} {delimeter |} {max 80}} {          # list globals in threads
 namespace export {*}[info proc] twidgets tla tlg send_command
 }
 # end of tasks namespace eval
+package provide tasks 1.12
 
