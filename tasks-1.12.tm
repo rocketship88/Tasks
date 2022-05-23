@@ -1822,8 +1822,8 @@ The mousewheel can also be used here for the up/down history.}
 proc EvalAttached {args} {
     global ent1 ent2
     set result ""
-    set use ""
-    if       { $ent1 eq "" } { ;# if blank try to get mainthread tid
+    set use "" 
+    if       { $ent1 eq ""  && [string match -nocase *tclsh* [info nameof]] == 0} { ;# if blank try to get mainthread tid
         if [catch {
             set use [tsv::set main mainthread]
         } err_code] {
@@ -2067,7 +2067,7 @@ proc do_tab {window} {                      ;# callback for a tab char
             proc do_send {ent1 ent2} {
                 set rcolor $::Color
                 putz "ent1= |$ent1| ent2= |$ent2| " yellowonblack
-                if { $ent1 eq "" } {
+                if { $ent1 eq "" && [string match -nocase *tclsh* [info nameof]] == 0} { 
                     set ::ent1 [tsv::set main mainthread]
                     set ent1 $::ent1
                 }
