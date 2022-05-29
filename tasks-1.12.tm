@@ -2264,7 +2264,7 @@ proc do_tab {window} {                      ;# callback for a tab char
                     exec xdg-open "https://www.magicsplat.com/tcl-docs/docindex.html?search=$arg" &
 
                 } else {
-                    exec cmd.exe /c start "https://www.magicsplat.com/tcl-docs/docindex.html?search=$arg" &
+                    exec cmd.exe /c start "" "https://www.magicsplat.com/tcl-docs/docindex.html?search=$arg" &
                 }
             }
             
