@@ -848,6 +848,8 @@ proc tgroup {gname option args} {
             set name(tid,$n) $tid
         }
         
+    } elseif {  $option eq "-add_tasks" } {
+    	return [add_tasks $gname {*}$args]
     } elseif {  $option eq "-run" || $option eq "-reset" } {
         upvar #0 $gname name
         set name(job)   0                                              ;# reset this so we can do another -run
@@ -2838,7 +2840,7 @@ proc tlg {{pat **} {delimeter |} {max 80}} {          # list globals in threads
 
 
 
-namespace export {*}[info proc] twidgets tla tlg send_command
+namespace export Tproc tla task_monitor tdump putz treturn wait tlg send_command tset tcall repos tgroup twait twidgets Task xwait comma tname tvwait tpause_check
 }
 # end of tasks namespace eval
 
