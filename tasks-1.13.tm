@@ -119,14 +119,14 @@ proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget
         scrollbar .taskdebug.sssss    -command            {.taskdebug.ttttt yview}
         
         pack .taskdebug.fffff -side top -fill x
-        pack .taskdebug.fffff.wwwww .taskdebug.fffff.ccccc .taskdebug.fffff.bbbbb -side left -expand 1 -fill x
+        pack .taskdebug.fffff.wwwww .taskdebug.fffff.ccccc -side left -expand 1 -fill x
         pack .taskdebug.sssss -side right -fill y
         pack .taskdebug.ttttt -side left -fill both -expand 1
-        pack .taskdebug.fffff.cbcbcb1 -side right -fill y
+        pack .taskdebug.fffff.cbcbcb1 -side left -fill y
         
         set ::t_putz_output 1
         checkbutton .taskdebug.fffff.cbcbcb2 -variable ::t_putz_output -text "putz output"
-        pack .taskdebug.fffff.cbcbcb2 -side right -fill y
+        pack .taskdebug.fffff.cbcbcb2 .taskdebug.fffff.bbbbb -side left -fill y
         set back grey30
         set fore white
         .taskdebug.ttttt tag configure debug              -foreground black -selectbackground $back -selectforeground $fore
@@ -849,7 +849,7 @@ proc tgroup {gname option args} {
         }
         
     } elseif {  $option eq "-add_tasks" } {
-    	return [add_tasks $gname {*}$args]
+        return [add_tasks $gname {*}$args]
     } elseif {  $option eq "-run" || $option eq "-reset" } {
         upvar #0 $gname name
         set name(job)   0                                              ;# reset this so we can do another -run
@@ -1650,6 +1650,19 @@ set utility_scripts {
                         foreach {txt cmd} [lrange $cmd 2 end] {
                             $radi add radio -label $txt -variable $varname -command $cmd
                         }
+                    } elseif {[regexp {^C (.+)} $label -> label]} {
+                        catch {$it add cascade -label $label -menu $it.r$label}
+                        set casc [menu $it.r$label -tearoff 0 -font {consolas 12}]
+                        foreach {varname default} $cmd break
+                        global $varname
+                        set $varname $default
+                        foreach {txt cmd} [lrange $cmd 0 end] {
+                            if { $txt eq "--" } {
+                                $casc add separator 
+                            } else {
+                                $casc add command -label $txt -command $cmd
+                            }
+                        }
                     } else {
                         $it add command -label $label -state $state -command $cmd -font {consolas 12}
                     }
@@ -2158,7 +2171,40 @@ proc do_tab {window} {                      ;# callback for a tab char
                 if { ! $atid } {
                     set senders 0
                     foreach t $::all_tasks {
-                        if { [string match -nocase $ent1 $t]} {
+                        set mat 0
+                        if       { [string index $ent1 0] eq "-" } { ;# use regexp match on 1-end
+                            if { [regexp [string range $ent1 1 end] $t] } {
+                                set mat 1
+                            }
+                            
+                        } elseif { [string index $ent1 0] eq "#"  } { ;# use range match
+                            set r [split [string range $ent1 1 end] "-"]
+                            if       { [llength $r ] == 1 } {
+                                set from [lindex $r 0]
+                                set to   $from
+                            } elseif { [llength $r ] == 2 } {
+                                set from [lindex $r 0]
+                                set to   [lindex $r 1]
+                                if { $to eq "" } {
+                                    set to 9999 ;# this is N- so assume N-end
+                                }
+                                if { $from eq "" } {
+                                    set from 0 ;# this is N- so assume N-end
+                                }
+                            } else {
+                                error "Bad # range: $ent1"
+                            }
+                            set zzz [regexp -nocase -linestop -lineanchor {[^0-9](\d+)} [string range $t 1 end] -> number]
+                            if {$zzz & $number >= $from && $number <= $to} {
+                                set mat 1
+                            }
+
+                        } else {
+                            if { [string match -nocase $ent1 $t]} {
+                                set mat 1
+                            }
+                        }
+                        if { $mat } {
                             incr senders
                             putz "thread::send [tset $t tid] / $t \{$ent2\}"; 
                             if {$ent2 ne ""} {
@@ -2232,6 +2278,18 @@ proc do_tab {window} {                      ;# callback for a tab char
             proc do_clear {args} {
                 set ::ent2 {.taskdebug.ttttt delete 1.0 end ;# sent this}
                 .f.doit invoke
+            }
+            proc do_send_now {n arg} {
+                if       { $n >= 1 && $n <= 4} {
+                    set ::ent2 $arg
+                    .f.doit invoke
+                } elseif { $n == 5 } {
+                    dothis
+                } elseif { $n == 6 } {
+                    dothis
+                } else {
+                    error "bad do_send_now $n"
+                }
             }
             proc do_see_end {args} {
                 set ::ent2 {.taskdebug.ttttt see end ;# sent this}
@@ -2354,10 +2412,22 @@ proc do_tab {window} {                      ;# callback for a tab char
                     -- {}
                     "Wiget Tree Tool"               {do_widget_tree}
                     -- {}
-                    "See   putz Win at end"     {do_see_end}
-                    "Hide  putz Win"            {do_minimize 1}
-                    "Show  putz Win"            {do_minimize 0}
-                    "Clear putz Win"            {do_clear}
+                    "C putz commands" {
+                        "See   putz Win at end"     {do_see_end}
+                        "Hide  putz Win"            {do_minimize 1}
+                        "Show  putz Win"            {do_minimize 0}
+                        "Clear putz Win"            {do_clear}
+                        "Enable Tk putz linux"      {do_send_now 1 {set ::t_debug 0x4; tasks::putz "Enable Tk on Linux"}}
+                    }
+                    -- {}
+                    "C Clear Task Fields" {
+                        "Counts"                    {do_send_now 1 {tasks::tset $::t_name count 0  ;# sent}}
+                        "Results"                   {do_send_now 1 {tasks::tset $::t_name result ""  ;# sent}}
+                        "Errors"                    {do_send_now 1 {tasks::tset $::t_name error "" ;# sent}}
+                        "User"                      {do_send_now 1 {tasks::tset $::t_name user ""  ;# sent}}
+                        -- --
+                        "All the Above"             {do_send_now 4 {tasks::tset $::t_name count 0 ;tasks::tset $::t_name result ""  ;tasks::tset $::t_name error "" ;tasks::tset $::t_name user ""  ;# sent}}
+                    }
                     -- {}
                     "Lookup with browser"           {do_lookup}
                     "Clear Command Entry"           {set ::ent2 ""}
