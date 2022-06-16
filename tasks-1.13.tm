@@ -1257,6 +1257,10 @@ proc task_monitor {args} {
                 # Mousewheel bindings for scrolling.
                 bind [winfo toplevel $path] <MouseWheel>       [list +[namespace current] scroll $path yview %W %D]
                 bind [winfo toplevel $path] <Shift-MouseWheel> [list +[namespace current] scroll $path xview %W %D]
+                bind [winfo toplevel $path] <Button-4>       [list +[namespace current] scroll $path yview %W 150]
+                bind [winfo toplevel $path] <Button-5>       [list +[namespace current] scroll $path yview %W -150]
+                bind [winfo toplevel $path] <Shift-Button-4>       [list +[namespace current] scroll $path xview %W 150]
+                bind [winfo toplevel $path] <Shift-Button-5>       [list +[namespace current] scroll $path xview %W -150]
                 
                 return $path
             }
@@ -1343,7 +1347,6 @@ set utility_scripts {
                 incr a [expr {   0-$step   }]
                 lmap b [lrepeat [expr {   ($b-$a) / $step   }] 0] {incr a $step}
             } else {
-                #           puts "a= |$a| b= |$b| step= |$step| "
                 incr a $step
                 lmap b [lrepeat [expr {   ($a-$b) / $step   }] 0] {incr a -$step}
             }
@@ -1411,9 +1414,9 @@ set utility_scripts {
         ttk::spinbox    .top.frame.repos.y      -from 100 -to 2000 -increment 25    -textvariable reposY -width 4   -font {TkTextFont 14} 
         button          .top.frame.repos.b1     -text " Reposition "                -command {repos_callback} 
         
-        ttk::labelframe .top.frame.pause        -text "Pause All"
-        button          .top.frame.pause.on     -text " On "        -command {do_pause on} 
-        button          .top.frame.pause.off    -text " Off "       -command {do_pause off} 
+        ttk::labelframe .top.frame.pause        -text "    Pause"
+        button          .top.frame.pause.on     -text " All "        -command {do_pause on} 
+        button          .top.frame.pause.off    -text " None "       -command {do_pause off} 
         
         button          .top.frame.b3           -text "Exit"        -command {exit}
         button          .top.frame.b4           -text "Send Cmd"    -command {tasks::send_command}
@@ -1692,12 +1695,58 @@ set utility_scripts {
                     set n$w [llength $hist]
                 }
                 if [string compare $s [lindex $hist end]] {
-            #           putz "not equal s= /$s/ hist = /[lindex $hist end]/"
                     lappend hist $s
                     set n$w [llength $hist]
                 } else {
-            #           putz "equal s= /$s/ hist = /[lindex $hist end]/"
                     set n$w [llength $hist] ;# correction, if used one from history, we want it on the next up
+                }
+            }
+            proc history::save {w1 w2} {
+                variable $w1
+                variable n$w1
+                upvar 0 $w1 hist1
+                variable $w2
+                variable n$w2
+                upvar 0 $w2 hist2
+                set io [open [file join [pwd] .sendcmd_history] w]
+                foreach item [lreverse $hist1] {
+                	puts $io $item	
+                }
+                puts $io "###end###"
+                foreach item [lreverse $hist2 ] {
+                	puts $io $item	
+                }
+                puts $io "###end###"
+                close $io
+            }
+            proc history::restore {w1 w2} {
+                variable $w1
+                variable n$w1
+                upvar 0 $w1 hist1
+                variable $w2
+                variable n$w2
+                upvar 0 $w2 hist2
+                
+                set io [open [file join [pwd] .sendcmd_history] r]
+                set data [split [read -nonewline $io] \n]
+                set n 0
+                foreach item $data {
+                	if { $n == 0 } {
+                		if { $item eq "###end###" } {
+                			incr n
+                			continue
+                		} else {
+                			putz "add item: $item to list $n" green
+                			lappend hist1 $item
+                		}
+                	} else {
+                		if { $item eq "###end###" } {
+                			break
+                		} else {
+                			putz "add item: $item to list $n" green
+                			lappend hist2 $item
+                		}
+                	}	
                 }
             }
             proc history::move {w where} {
@@ -2042,9 +2091,7 @@ proc choose {w choices {start 0} {max 20} {kind ?}} {
 }
 
 proc getchoice {w choices kind} {
-                                                                                   #putz "in getchoice: choices= |$choices|  [llength $choices]"
     if { [llength $choices] == 1 } {
-                                                                                   # putz "only the one: $choices"
         set ::the_choice $choices
         return $choices
     }
@@ -2154,9 +2201,10 @@ proc do_tab {window} {                      ;# callback for a tab char
                     set ::ent1 [tsv::set main mainthread]
                     set ent1 $::ent1
                 }
-                if { $ent1 eq "sendcmd" } {
+                if { $ent1 eq "sendcmd" || $::ent1 eq [tset sendcmd tid]} {
                     set ::ent1 [tset sendcmd tid]
                     set ent1 $::ent1
+                    after 2000 {wm deiconify .}
                 }
                 if { $ent1 eq "taskmonitor"  || $ent1 eq "_taskmonitor"} {
                     set ::ent1 [tset _taskmonitor tid]
@@ -2350,6 +2398,15 @@ proc do_tab {window} {                      ;# callback for a tab char
                     error "bad font menu"
                 }
             }
+            proc do_load_save {arg w1 w2} {
+            	if { $arg } {
+            		history::save $w1 $w2
+            		putz "save history to [file join [pwd] .sendcmd_history] |$w1| |$w2|"
+            	} else {
+            		history::restore $w1 $w2
+            		putz "redload history from [file join [pwd] .sendcmd_history] |$w1| |$w2|"	
+            	}
+            }
             
             proc do_refresh_tasks_menu {args} {
                 set tasks [tdump +,tid\t ]
@@ -2408,8 +2465,6 @@ proc do_tab {window} {                      ;# callback for a tab char
                     "tla array *"                   {do_tla 2}
                     "tla array * match-data"        {do_tla 3}
                     -- {}
-                    "x Add Separator Line"          {}
-                    -- {}
                     "Wiget Tree Tool"               {do_widget_tree}
                     -- {}
                     "C putz commands" {
@@ -2419,7 +2474,6 @@ proc do_tab {window} {                      ;# callback for a tab char
                         "Clear putz Win"            {do_clear}
                         "Enable Tk putz linux"      {do_send_now 1 {set ::t_debug 0x4; tasks::putz "Enable Tk on Linux"}}
                     }
-                    -- {}
                     "C Clear Task Fields" {
                         "Counts"                    {do_send_now 1 {tasks::tset $::t_name count 0  ;# sent}}
                         "Results"                   {do_send_now 1 {tasks::tset $::t_name result ""  ;# sent}}
@@ -2428,8 +2482,18 @@ proc do_tab {window} {                      ;# callback for a tab char
                         -- --
                         "All the Above"             {do_send_now 4 {tasks::tset $::t_name count 0 ;tasks::tset $::t_name result ""  ;tasks::tset $::t_name error "" ;tasks::tset $::t_name user ""  ;# sent}}
                     }
+                    "C Misc commands" {
+                        "Pause on"     				{do_send_now 1 {set ::t_task_pause 1 ;# sent}}
+                        "Pause off"            		{do_send_now 1 {set ::t_task_pause 0 ;# sent}}
+                        "Toggle Pause"            	{do_send_now 1 {set ::t_task_pause [expr {1 - $::t_task_pause}] ;# sent}}
+                        -- --
+                        "Putz on"     				{do_send_now 1 {set ::t_putz_output 1 ;# sent}}
+                        "Putz off"            		{do_send_now 1 {set ::t_putz_output 0 ;# sent}}
+                        "Toggle Putz"            	{do_send_now 1 {set ::t_putz_output [expr {1 - $::t_putz_output}] ;# sent}}
+                    }
                     -- {}
                     "Lookup with browser"           {do_lookup}
+                    "x Add Separator Line"          {}
                     "Clear Command Entry"           {set ::ent2 ""}
                 } 1
                 Extra {
@@ -2452,6 +2516,8 @@ proc do_tab {window} {                      ;# callback for a tab char
                     -- --
                     "Run Task Monitor"          {tasks::task_monitor}
                     -- --
+                    "Save History"				{do_load_save 1 .f.t .f.w}
+                    "Reload History"			{do_load_save 0 .f.t .f.w}
                     -- --
                     "Exit"                          {exit}
                 } 0
@@ -2472,7 +2538,6 @@ proc twidgets {} {
     set ::tasks::wtreescript {
         proc wtree_:_node_openclose {which} {
             set nodes [.wtree_top.sw.t nodes root]
-            #puts "which - $which - $nodes"
             if { $which == "open" } {
                 foreach item $nodes {
                     .wtree_top.sw.t opentree $item
@@ -2565,9 +2630,7 @@ proc twidgets {} {
                 
             }
             if { $level == 0 } {
-                #puts "\n\ndone here\n\n"
                 foreach item $::wtree_queued_inserts {
-                    #puts "do - $item"
                     eval $item
                 }
             }
@@ -2664,7 +2727,6 @@ proc tla {array_name {pattern *} {reverse 0} } { # list an array, if reverse, pa
         }
     } else { ;# match against data, not the index
         foreach name [lsort [array names array]] {
-            #puts stdout "compare pattern $pattern with $name - $array($name)"
             set mat [string match "*$pattern*" $array($name)]
             set outputit 0
             if {$mat && $reverse > 0} {
