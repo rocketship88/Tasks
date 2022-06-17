@@ -1061,6 +1061,68 @@ proc task_monitor {args} {
 #   --------------------------------------- create frames
     set create_frame_script {
     
+           ;  proc save_layout {} {
+                set io [open [file join [pwd] .taskmonitor_layout] w]
+                puts $io [get_layout]
+                close $io
+                putz "Save layout to: [file join [pwd] .taskmonitor_layout]"
+            }
+           ;  proc restore_layout {} {
+                set io [open [file join [pwd] .taskmonitor_layout] r]
+                set data [split [read -nonewline $io] \n]
+                set_layout {*}$data
+                close $io
+                putz "Restore layout from: [file join [pwd] .taskmonitor_layout]"
+            }
+    
+        ; proc get_layout {} {
+            set wids {}
+            for {set n 0} {$n <= $::ncols } {incr n} {
+                set widgetx $::widget(0,$n)
+                set current [$widgetx cget -width]  
+                lappend wids $current
+            }
+            return [list $wids [wm geom .top] $::refresh_seconds $::fsize $::reposX $::reposY $::changes]
+        }
+        ; proc set_layout {arg} {
+            lassign $arg wids geom ref fnt x y chg
+            if { $geom ne "" } {
+                wm geom .top $geom
+            }
+            if { $ref ne "" } {
+                set ::refresh_seconds $ref
+            }
+            if { $fnt ne "" } {
+                set ::fsize $fnt
+                font_callback
+            }
+            if { $x ne "" } {
+                set ::reposX $x
+            }
+            if { $y ne "" } {
+                set ::reposY $y
+            }
+            if { $chg ne "" } {
+                set ::changes $chg
+            }
+            set n -1
+            foreach wid $wids {
+                incr n
+                column_resize $n $wid   
+            }
+        }
+        ; proc column_resize {col size} {
+            set widgetx $::widget(0,$col)
+            set current [$widgetx cget -width]
+#           tasks::putz  "col= |$col| nrows= |$::nrows| which= |$which| widgetx= |$widgetx| current= |$current| " green
+            for {set n 0} {$n <= $::nrows  } {incr n} {
+#               tasks::putz  "   n = $n  widget($n,$col) = $::widget($n,$col)" red
+#               tasks::putz "newcur= |$newcur| " 
+                $::widget($n,$col) configure -width $size
+                
+            }
+            event generate .top.fra.scframe.canvas <Configure> ;# should be able to compute this widget path, but...
+        }
         ; proc column_sizer {mult col which widgetx} { ;# left/right clicks on heading will resize column left=smaller (min size 3) (max size 100)
             set current [$widgetx cget -width]
 #           tasks::putz  "col= |$col| nrows= |$::nrows| which= |$which| widgetx= |$widgetx| current= |$current| " green
@@ -1418,31 +1480,48 @@ set utility_scripts {
         button          .top.frame.pause.on     -text " All "        -command {do_pause on} 
         button          .top.frame.pause.off    -text " None "       -command {do_pause off} 
         
-        button          .top.frame.b3           -text "Exit"        -command {exit}
-        button          .top.frame.b4           -text "Send Cmd"    -command {tasks::send_command}
-        checkbutton     .top.frame.c1           -variable pause     -relief raised  -text "Pause"
-        checkbutton     .top.frame.c2           -variable changes   -relief raised  -text "Color New"
-        checkbutton     .top.frame.c3           -variable ontop     -relief raised  -text "On Top" -command {do_ontop}
+        ttk::frame      .top.frame.frame1
+        ttk::frame      .top.frame.frame2
+        ttk::frame      .top.frame.frame3
+        ttk::frame      .top.frame.frame2.frame4
         
-        balloon::balloon .top.frame.b4          -text "Opens 2 windows, one to send commands\nand another to view results"
+        button          .top.frame.frame3.b3           -text "Exit    "        -command {exit} -font {consolas 10}
+        button          .top.frame.frame3.b4           -text "Send Cmd"    -command {tasks::send_command} -font {consolas 10}
+        
+        button          .top.frame.frame2.frame4.b5           -text "Save"        -command {save_layout} -font {consolas 10}
+        button          .top.frame.frame2.frame4.b6           -text "Restore"    -command {restore_layout} -font {consolas 10}
+        
+        checkbutton     .top.frame.frame1.c1           -variable pause     -relief raised  -text "Pause    " -font {consolas 10}
+        checkbutton     .top.frame.frame1.c2           -variable changes   -relief raised  -text "Color New" -font {consolas 10}
+        checkbutton     .top.frame.frame2.c3           -variable ontop     -relief raised  -text "On Top" -command {do_ontop} -font {consolas 10}
+        
+        balloon::balloon .top.frame.frame3.b4          -text "Opens 2 windows, one to send commands\nand another to view results"
         balloon::balloon .top.frame.repos.b1    -text "Using X and Y spinboxes, will\nreposition/resize all putz windows"
-        balloon::balloon .top.frame.c2          -text "Change color of changed fields, briefly\ntime depends on refresh interval"
+        balloon::balloon .top.frame.frame1.c2          -text "Change color of changed fields, briefly\ntime depends on refresh interval"
         balloon::balloon .top.frame.delay       -text "Refresh in seconds and Font size 6-20"
         balloon::balloon .top.frame.pause       -text "Turn on or off all pause checkboxes \nin putz windows" -showdelay 200
-        balloon::balloon .top.frame.c1          -text "Pauses this task monitor"
-        balloon::balloon .top.frame.c3          -text "Keeps this window on top"
+        balloon::balloon .top.frame.frame1.c1          -text "Pauses this task monitor"
+        balloon::balloon .top.frame.frame2.c3          -text "Keeps this window on top"
 #       balloon::balloon xxxxx  -text ""
 #       balloon::balloon xxxxx  -text ""
+        balloon::balloon .top.frame.frame2.frame4.b5    -text "Save layout to .taskmonitor_layout in current directory"
+        balloon::balloon .top.frame.frame2.frame4.b6    -text "Restore layout from .taskmonitor_layout in current directory"
         pack    .top.frame                                                  -side top   -expand 0 -fill x
         
         pack    .top.frame.delay .top.frame.delay.sb .top.frame.delay.sb2   -side left  -expand 0 -fill x
         pack    .top.frame.repos .top.frame.repos.x  .top.frame.repos.y     -side left  -expand 0 -fill x
         
-        pack    .top.frame.repos.b1                                         -side left  -expand 1 -fill both
-        pack    .top.frame.pause                                            -side left  -expand 0 -fill both
-        pack    .top.frame.b4           .top.frame.c2   .top.frame.c3 \
-                .top.frame.c1           .top.frame.b3                       -side left  -expand 1 -fill both
-        pack    .top.frame.pause.on     .top.frame.pause.off                -side left  -expand 0 -fill both
+        pack    .top.frame.repos.b1                                             -side left  -expand 1 -fill x
+        pack    .top.frame.pause                                                -side left  -expand 0 -fill x
+        pack    .top.frame.frame1    .top.frame.frame2    .top.frame.frame3     -side left  -expand 1 -fill both
+        pack    .top.frame.frame3.b4 .top.frame.frame3.b3                       -side top   -expand 1 -fill x -pady 1
+        
+        pack    .top.frame.frame1.c2 .top.frame.frame1.c1                       -side top  -expand 1  -fill both          
+        pack    .top.frame.frame2.c3  .top.frame.frame2.frame4                  -side top  -expand 1  -fill both  -pady 1
+        pack    .top.frame.frame2.frame4.b5  .top.frame.frame2.frame4.b6       -side left  -expand 1  -fill both  
+                
+               
+        pack    .top.frame.pause.on     .top.frame.pause.off                    -side left -expand 0  -fill x
         
         wm geom .top 892x318+128+128
         wm protocol .top WM_DELETE_WINDOW {putz "Can't close the monitor, pause and use minimize \nputz windows can be closed and reopened however" yellowonblack}
@@ -1710,11 +1789,11 @@ set utility_scripts {
                 upvar 0 $w2 hist2
                 set io [open [file join [pwd] .sendcmd_history] w]
                 foreach item [lreverse $hist1] {
-                	puts $io $item	
+                    puts $io $item  
                 }
                 puts $io "###end###"
                 foreach item [lreverse $hist2 ] {
-                	puts $io $item	
+                    puts $io $item  
                 }
                 puts $io "###end###"
                 close $io
@@ -1731,22 +1810,22 @@ set utility_scripts {
                 set data [split [read -nonewline $io] \n]
                 set n 0
                 foreach item $data {
-                	if { $n == 0 } {
-                		if { $item eq "###end###" } {
-                			incr n
-                			continue
-                		} else {
-                			putz "add item: $item to list $n" green
-                			lappend hist1 $item
-                		}
-                	} else {
-                		if { $item eq "###end###" } {
-                			break
-                		} else {
-                			putz "add item: $item to list $n" green
-                			lappend hist2 $item
-                		}
-                	}	
+                    if { $n == 0 } {
+                        if { $item eq "###end###" } {
+                            incr n
+                            continue
+                        } else {
+                            putz "add item: $item to list $n" green
+                            lappend hist1 $item
+                        }
+                    } else {
+                        if { $item eq "###end###" } {
+                            break
+                        } else {
+                            putz "add item: $item to list $n" green
+                            lappend hist2 $item
+                        }
+                    }   
                 }
             }
             proc history::move {w where} {
@@ -2399,13 +2478,13 @@ proc do_tab {window} {                      ;# callback for a tab char
                 }
             }
             proc do_load_save {arg w1 w2} {
-            	if { $arg } {
-            		history::save $w1 $w2
-            		putz "save history to [file join [pwd] .sendcmd_history] |$w1| |$w2|"
-            	} else {
-            		history::restore $w1 $w2
-            		putz "redload history from [file join [pwd] .sendcmd_history] |$w1| |$w2|"	
-            	}
+                if { $arg } {
+                    history::save $w1 $w2
+                    putz "save history to [file join [pwd] .sendcmd_history] |$w1| |$w2|"
+                } else {
+                    history::restore $w1 $w2
+                    putz "redload history from [file join [pwd] .sendcmd_history] |$w1| |$w2|"  
+                }
             }
             
             proc do_refresh_tasks_menu {args} {
@@ -2483,13 +2562,13 @@ proc do_tab {window} {                      ;# callback for a tab char
                         "All the Above"             {do_send_now 4 {tasks::tset $::t_name count 0 ;tasks::tset $::t_name result ""  ;tasks::tset $::t_name error "" ;tasks::tset $::t_name user ""  ;# sent}}
                     }
                     "C Misc commands" {
-                        "Pause on"     				{do_send_now 1 {set ::t_task_pause 1 ;# sent}}
-                        "Pause off"            		{do_send_now 1 {set ::t_task_pause 0 ;# sent}}
-                        "Toggle Pause"            	{do_send_now 1 {set ::t_task_pause [expr {1 - $::t_task_pause}] ;# sent}}
+                        "Pause on"                  {do_send_now 1 {set ::t_task_pause 1 ;# sent}}
+                        "Pause off"                 {do_send_now 1 {set ::t_task_pause 0 ;# sent}}
+                        "Toggle Pause"              {do_send_now 1 {set ::t_task_pause [expr {1 - $::t_task_pause}] ;# sent}}
                         -- --
-                        "Putz on"     				{do_send_now 1 {set ::t_putz_output 1 ;# sent}}
-                        "Putz off"            		{do_send_now 1 {set ::t_putz_output 0 ;# sent}}
-                        "Toggle Putz"            	{do_send_now 1 {set ::t_putz_output [expr {1 - $::t_putz_output}] ;# sent}}
+                        "Putz on"                   {do_send_now 1 {set ::t_putz_output 1 ;# sent}}
+                        "Putz off"                  {do_send_now 1 {set ::t_putz_output 0 ;# sent}}
+                        "Toggle Putz"               {do_send_now 1 {set ::t_putz_output [expr {1 - $::t_putz_output}] ;# sent}}
                     }
                     -- {}
                     "Lookup with browser"           {do_lookup}
@@ -2516,8 +2595,8 @@ proc do_tab {window} {                      ;# callback for a tab char
                     -- --
                     "Run Task Monitor"          {tasks::task_monitor}
                     -- --
-                    "Save History"				{do_load_save 1 .f.t .f.w}
-                    "Reload History"			{do_load_save 0 .f.t .f.w}
+                    "Save History"              {do_load_save 1 .f.t .f.w}
+                    "Reload History"            {do_load_save 0 .f.t .f.w}
                     -- --
                     "Exit"                          {exit}
                 } 0
@@ -2584,19 +2663,10 @@ proc twidgets {} {
             set children [winfo children $root]
             set class [winfo class $root]
             set info ""
-            if       { $class == "Button" } {
+            if       { $class == "TCheckbutton" || $class == "Checkbutton" ||  $class == "Button"  ||  $class == "TLabelframe" ||  $class == "TButton" } {
                 set info [split [$root cget -text] \n]
-                
-            } elseif { $class == "TLabelframe" } {
-                set info [split [$root cget -text] \n]
-                
-            } elseif { $class == "TButton" } {
-                set info [split [$root cget -text] \n]
-                
             } elseif { $class == "TEntry" } {
                 set info "var: [$root cget -textvariable]"
-            } elseif { $class == "TCheckbutton" } {
-                set info [split [$root cget -text] \n]
             } elseif { $class == "TButton2" } {
                 set info [split [$root cget -text] \n]
             } else {
@@ -2788,7 +2858,7 @@ proc tlg {{pat **} {delimeter |} {max 80}} {          # list globals in threads
        set dismissdelay 10000;
        set foreground   black;
        set label        "";
-       set showdelay    1000;
+       set showdelay    1500;
        set text         "";
        set textvariable "";
      }
