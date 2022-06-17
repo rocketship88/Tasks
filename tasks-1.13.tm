@@ -1788,11 +1788,11 @@ set utility_scripts {
                 variable n$w2
                 upvar 0 $w2 hist2
                 set io [open [file join [pwd] .sendcmd_history] w]
-                foreach item [lreverse $hist1] {
+                foreach item $hist1 {
                     puts $io $item  
                 }
                 puts $io "###end###"
-                foreach item [lreverse $hist2 ] {
+                foreach item $hist2  {
                     puts $io $item  
                 }
                 puts $io "###end###"
@@ -1827,6 +1827,8 @@ set utility_scripts {
                         }
                     }   
                 }
+                history::move $w1 99999;
+                history::move $w2 99999;
             }
             proc history::move {w where} {
                 variable $w
