@@ -332,7 +332,7 @@ proc Task {name0 args} {        ;# create a Task
     set e1 "if \[catch \{$dw1"  ;# enclose script in a catch, and a while (unless suppressed with the option)
     
     set e2a "\n\}$dw2 thread_err_code thread_err_dict\] \{\n    tsv::set tvar $name,error \$thread_err_dict  \n"
-    set e2b {    package require Tk; tk_messageBox -message "Name = $::t_name Parent = $::t_pid\n$thread_err_code\n\n$thread_err_dict" -title "tid [thread::id]"}
+    set e2b {    package require Tk; tk_messageBox -message "Name = $::t_name Parent = $::t_pid\n$thread_err_code\n\n$thread_err_dict" -title "tid [thread::id]" ; vwait ::forever1}
     set e2c "\n\}\n"
     
     set e2 ""
@@ -374,7 +374,7 @@ proc Task {name0 args} {        ;# create a Task
     }
 
     set script0 "" ;# place another if/catch around the entire script, to catch things like namespace eval missing
-    append script0 "if \[catch \{\n" $script "\n" "\} err_code_Task_Create\] \{ " "\n" "    tsv::set tvar $name,error \$err_code_Task_Create\n    package require Tk; tk_messageBox -title {Task create error} -message \$err_code_Task_Create\n\}"  
+    append script0 "if \[catch \{\n" $script "\n" "\} err_code_Task_Create\] \{ " "\n" "    tsv::set tvar $name,error \$err_code_Task_Create\n    package require Tk; tk_messageBox -title {Task create error} -message \$err_code_Task_Create\n    vwait ::forever2\n\}"  
     set script $script0
     set tid [thread::create $script]
     
@@ -1815,14 +1815,14 @@ set utility_scripts {
                             incr n
                             continue
                         } else {
-                            putz "add item: $item to list $n" green
+                            putz "add item to history list $n: |$item| " green
                             lappend hist1 $item
                         }
                     } else {
                         if { $item eq "###end###" } {
                             break
                         } else {
-                            putz "add item: $item to list $n" green
+                            putz "add item to history list $n: |$item| " green
                             lappend hist2 $item
                         }
                     }   
