@@ -985,7 +985,7 @@ proc Tproc {name arguments body {option -tasks} {num 4} args} {
     set targs {}
     lappend targs {*}$opts $ar
     uplevel "tasks::tgroup $name -tasks $num $targs  \{
-        ${qual}twait argv
+        ${qual}twait argv ; set argc \[llength \$argv\]
         ${qual}treturn \[$name \{*\}\$argv\]
     \}
     "
