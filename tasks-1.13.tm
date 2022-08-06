@@ -187,7 +187,7 @@ proc tname {tid} {              ;# shorthand to get the taskname given a Task id
 }
 ################################################# get or set by taskname and parm
 proc tset {name parm {arg {GwY6itRvUgUNuTg2WfS3xyz123}}} {  ;# shorthand to get or set a shared variable given a Task name and element (optional value)
-    set items [list tid pid result script mutex gvar cond queue count error share user putz]
+    set items [list tid pid result script mutex gvar cond queue count error share user putz paused]
     
     if { $arg != {GwY6itRvUgUNuTg2WfS3xyz123} } {
         foreach item $items {
@@ -555,12 +555,14 @@ proc tpause_check {args} {
         while { $::t_task_pause } {
             if { [incr twcount] == 1 } {
                 putz "Pausing  task: $twcount"
+                tsv::set tvar $::t_name,paused 1
             }
             wait 1000
         }
         putz "Resuming task after:  $twcount seconds"
         wait 1000
     }
+    tsv::set tvar $::t_name,paused 0
     
 }
 
@@ -1553,7 +1555,7 @@ set utility_scripts {
             set tnames [lsort -dictionary -stride 2 [array get ::table *,0]]
             dict for {ind tn} $tnames {
 #               tasks::putz "ind = $ind, tn = $tn"
-                if { $ind eq "0,0" || $tn eq "_taskmonitor" || $tn eq "" } {
+                if { $ind eq "0,0" || $tn eq "_taskmonitor" || $tn eq "" || $tn eq "sendcmd"} {
                     continue
                 }
 #               tasks::putz "                                 turn pause $arg for $ind / $tn   "
@@ -1563,6 +1565,7 @@ set utility_scripts {
                 }
 #               tasks::putz "                                  $tid"
                 thread::send -async $tid "set t_task_pause $p"
+                tsv::set tvar $tn,paused $p
             }
         }
         
@@ -1634,6 +1637,16 @@ set utility_scripts {
                     incr column
                     if { $item eq "row" } {
                         set ::table($row,$column) $row
+                        if [catch {
+                            if { [tsv::set tvar $tname,paused] } {
+                                $::widget($row,$column) configure -bg pink
+                            } else {
+                                $::widget($row,$column) configure -bg grey97    
+                            }
+                        } err_code] {
+                            $::widget($row,$column) configure -bg red
+                            tsv::set tvar $tname,error $err_code    
+                        }
                         continue
                     }
                     if { $item eq "queue" } {
@@ -2408,12 +2421,13 @@ proc do_tab {window} {                      ;# callback for a tab char
                 set ::ent2 {.taskdebug.ttttt delete 1.0 end ;# sent this}
                 .f.doit invoke
             }
-            proc do_send_now {n arg} {
+            proc do_send_now {n arg } {
                 if       { $n >= 1 && $n <= 4} {
                     set ::ent2 $arg
                     .f.doit invoke
                 } elseif { $n == 5 } {
-                    dothis
+                    set ::ent2 $arg
+                    .f.doit invoke
                 } elseif { $n == 6 } {
                     dothis
                 } else {
@@ -2564,9 +2578,9 @@ proc do_tab {window} {                      ;# callback for a tab char
                         "All the Above"             {do_send_now 4 {tasks::tset $::t_name count 0 ;tasks::tset $::t_name result ""  ;tasks::tset $::t_name error "" ;tasks::tset $::t_name user ""  ;# sent}}
                     }
                     "C Misc commands" {
-                        "Pause on"                  {do_send_now 1 {set ::t_task_pause 1 ;# sent}}
-                        "Pause off"                 {do_send_now 1 {set ::t_task_pause 0 ;# sent}}
-                        "Toggle Pause"              {do_send_now 1 {set ::t_task_pause [expr {1 - $::t_task_pause}] ;# sent}}
+                        "Pause on"                  {do_send_now 5 {set ::t_task_pause 1 ; tsv::set tvar $::t_name,paused 1  }}
+                        "Pause off"                 {do_send_now 5 {set ::t_task_pause 0 ; tsv::set tvar $::t_name,paused 0  }}
+                        "Toggle Pause"              {do_send_now 5 {set ::t_task_pause [expr {1 - $::t_task_pause}] ; tsv::set tvar $::t_name,paused $::t_task_pause }}
                         -- --
                         "Putz on"                   {do_send_now 1 {set ::t_putz_output 1 ;# sent}}
                         "Putz off"                  {do_send_now 1 {set ::t_putz_output 0 ;# sent}}
