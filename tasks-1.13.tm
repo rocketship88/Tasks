@@ -2,7 +2,7 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13
+################################################# Tasks version 1.13b
 namespace eval tasks {  
 proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget from a Task (a thread)
 ##########################################
@@ -862,12 +862,12 @@ proc tgroup {gname option args} {
         }
         set name(tasks) $name(threads)
         if { [llength $args] != 0 && $option eq "-run"} { ;# no args after -reset
-            tgroup $gname -foreachup2 {*}$args
-            tgroup $gname -waitup2 all
+            tgroup $gname -foreach {*}$args
+            tgroup $gname -wait all
         }
     
         
-    } elseif {  $option eq "-foreach" || $option eq "-foreachup2"  } { ;# it's ugly but we allow multiple -foreach's in separate tgroup calls, so we must accumulate jobs
+    } elseif {  $option eq "-foreach"} { ;# it's ugly but we allow multiple -foreach's in separate tgroup calls, so we must accumulate jobs
         upvar #0 $gname name
         set numtasks $name(tasks)
         set numarglists [llength $args]
@@ -933,7 +933,7 @@ proc tgroup {gname option args} {
             incr index
         }
         
-    } elseif {  $option eq "-wait" || $option eq "-waitup2" } {
+    } elseif {  $option eq "-wait" } {
         upvar #0 $gname name
         lassign $args type
         if       { $type eq "all" } {
@@ -947,7 +947,7 @@ proc tgroup {gname option args} {
             error "Invalid tgroup call -wait $type must be all or one"
         }
     } else {
-        error "Invalid option to tgroup: $option, must be -tasks, -call, -foreach, -run, -reset, or -wait"
+        error "Invalid option to tgroup: $option, must be -tasks, -call, -foreach, -run, -reset, -add_tasks or -wait"
     }
 }
 #   Notes on Tproc. 
