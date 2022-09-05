@@ -433,6 +433,8 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
             }
         }
     }
+    return $output
+    # the below can fail, so no longer used, we just return the output as is
     set lines [split $output \n]
     set out {}
     foreach line $lines {
