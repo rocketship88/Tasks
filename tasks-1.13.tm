@@ -2,9 +2,60 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13b
+################################################# Tasks version 1.13a
 namespace eval tasks {  
-proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget from a Task (a thread)
+
+#   This version provides the windows system with a puts wrapper. puts can have 1-3 arguments. 
+#   
+#   With 1 arg, stdout is assumed for the io channel and the puts wrapper will hand it off to putz 
+#   to output. BTW, with 1 arg, the string can be -nonewline and is not an option, but the string.
+#    
+#   With 2 args, if the 1st arg is exactly -nonewline, then the second arg is the output string, 
+#   and the io channel is again stdout. This too will be handed off to putz, which has been 
+#   enhanced to also accept a -nonewline as it's first argument. 
+#    
+#   With 2 args and the first is not -nonewline, then the first arg is the io channel and the 
+#   second is the string. In this case, the io channel can be stdout, stderr, or another channel. 
+#   If stderr/stdout it will be handed off to putz. If some other value, it is assumed to be a 
+#   true i/o channel (stdout/stderr are psuedo channels that use the console). This is then sent 
+#   to the unwrapped and renamed puts for output to that channel.
+#    
+#   With 3 args, the first must be -nonewline (or it's an error) the 2nd is the i/o channel and 
+#   3rd is the string. If it is -nonewline and the i/o channel is not stderr/stdout, it is also 
+#   sent off to the unmodified puts. If it is stdout or stderr, then it is sent to putz. If 
+#   stderr, then putz is sent the -nonewline, the string, and the color red.
+#    
+#   The debug variable t_debug controls putz output. When 0 or 1, output is to a tk window. If it 
+#   sees the -nonewline and it's going to the tk window, it will suppress the newline. If tdebug 
+#   is 2 or 3, then it is sent to the main thread and uses puts there to output to the console. 
+#   There is no console in a thread. There isn't even a console command, and the channels stdout 
+#   and stderr are not defined. This is why putz was created in the first place.
+#    
+#   Bottom line is one should be able to use puts in the normal fashion from a task thread.
+#    
+#   On linux, the output is handed off to puts in all cases. However, now the -nonewline should be 
+#   passed on as well.
+#    
+#   The bug with linux using tk in more than one thread is supposed to be fixed; it mentions this 
+#   in the 8.6.12 release and the code for the fix involves some locks. I've not tested this on linux, 
+#   nor mac or androwish. For now, the code will still not create a tk window, but can be forced 
+#   to do so by setting the t_debug to 4 or 5. Odd numbers also turn on a trace.
+
+proc putz {args} { ;# debugging put using a text widget from a Task (a thread) args were: arg {color normal} {debug no}
+#set ::t_puts_debug([incr ::puts_debug_num]) [string map {\n \u2936 \t \u02eb  { } \u2219} [string range "putz: $args" 0 50] ] 
+    if { [lindex $args 0] eq "-nonewline" && [llength $args] > 1 } { ;# mimic behavior of puts
+        set nonl 1
+        lassign $args dummy arg color debug
+    } else {
+        set nonl 0
+        lassign $args arg color debug
+    }
+    if { $color eq "" } {
+        set color "normal"
+    }
+    if { $debug eq "" } {
+        set debug "no"
+    }
 ##########################################
 #   t_debug -1 means no putz output at all
 #   t_debug 0  means we use the tk, but no  debug output - the default if < we use 0
@@ -35,7 +86,11 @@ proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget
         if { [info exist ::t_debug] && $::t_debug < 0 } {
             return
         }
-        puts $io $arg
+        if { $nonl } {
+            puts -nonewline $io $arg
+        } else {
+            puts $io $arg
+        }
         return
     }
     set tdebug $::t_debug
@@ -80,9 +135,17 @@ proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget
 #       tsv::set tvar $::t_name,user4 $mid
 
         if { $::tcl_platform(platform) eq "windows" } {
-            thread::send -async $mid [list puts $io $argg]
+            if { $nonl } {
+                thread::send -async $mid [list puts -nonewline $io $argg]
+            } else {
+                thread::send -async $mid [list puts $io $argg]
+            }
         } else {
-            puts $io $argg
+            if { $nonl } {
+                puts -nonewline $io $argg
+            } else {
+                puts $io $argg  
+            }
         }
         return
     }
@@ -140,7 +203,11 @@ proc putz {arg {color normal} {debug no}} { ;# debugging put using a text widget
         .taskdebug.ttttt tag configure red                -foreground red -font {courier 10} -selectbackground $back -selectforeground $fore
     }
     if [catch {
-        .taskdebug.ttttt insert end $arg\n $color
+        if { $nonl } {
+            .taskdebug.ttttt insert end $arg $color
+        } else {
+            .taskdebug.ttttt insert end $arg\n $color
+        }
         .taskdebug.ttttt see end
         update
     } err_code] {
@@ -256,7 +323,7 @@ proc tdump {{pat .*} {max 90}} {         ;# dump all the shared Task variables
 #proc - main Task procs         -----------------------------------------------------------
 #################################################
 proc Task {name0 args} {        ;# create a Task
-    set dowhile 1               ;# assume we want the automatic while loop, but if -once is the first arg in args, we suppress it
+    set dowhile 1               ;# assume we want the automatic while loop, but if -once is any arg in args, we suppress it
     set donamespace 1           ;# assume we want to use namespaces, so we import by namespace
     set do_min_import 0
     while 1 {
@@ -265,7 +332,7 @@ proc Task {name0 args} {        ;# create a Task
             set args [lrange $args 1 end]   ;# shift over the first item in args if -once is the next one
         } elseif {  [lindex $args 0] eq "-min_import_tasks"} {
             set do_min_import 1
-            set args [lrange $args 1 end]   ;# shift over the first item in args if -puts is the next one
+            set args [lrange $args 1 end]   ;# shift over the first item in args if -min_import_tasks is the next one
         } elseif {  [lindex $args 0] eq "-import" || [lindex $args 0] eq "-import_tasks"} {
             set donamespace 0
             set args [lrange $args 1 end]   ;# shift over the first item in args if -import is the next one
@@ -349,11 +416,68 @@ proc Task {name0 args} {        ;# create a Task
 #        set autoimport [string map {::tasks {}} $autoimport]
         lappend autoimport {-namespace import tasks::* ;# from -import_tasks}
     }
-    set preamble "#Preamble\n\nnamespace eval tasks {}\nset ::t_pid $me\nset ::t_name $name\nset ::t_putz_output 1\nset ::t_twait_timeout 50\nset ::t_task_pause 0\nset ::t_debug 0x0\nset ::t_debug_contents end\n[tproc {*}$autoimport]\n"
+        
+        
+    set putswrapper ""
+    if { $::tcl_platform(platform) eq "windows"}  {
+        
+set puts_script {
+
+rename puts t_old_puts_wrapped
+proc puts {args} {
+    set pargs $args
+    set nlflag 0
+#    set ::t_puts_debug([incr ::puts_debug_num]) [string map {\n \u2936 \t \u02eb  { } \u2219} [string range "puts: $args" 0 50] ]    
+    if { [lindex $pargs 0] eq "-nonewline"  } {;# no abrev allowed for this puts option
+        set pargs [lassign $pargs dummy]
+        set nlflag 1
+    }
+    if       { [llength $pargs] == 2 } {;# puts chan data
+        lassign $pargs ch data
+        if       { $ch eq "stderr" } {
+            if { $nlflag } {
+                putz -nonewline $data red
+            } else {
+                putz $data red
+            }
+            return ""
+        } elseif { $ch eq "stdout" } {
+            if { $nlflag } {
+                putz -nonewline $data normal
+            } else {
+                putz $data normal
+            }
+            return ""
+        } else { ;# other channel so just pass it through
+        }
+    } elseif { [llength $pargs] == 1 } { ;# puts data
+        if { $nlflag } {
+            putz -nonewline [lindex $pargs 0] normal
+        } else {
+            putz [lindex $pargs 0] normal
+        }
+        return ""
+    }
+    if [catch {
+        t_old_puts_wrapped {*}$args
+    } err_code] {
+        putz "t_old_puts_wrapped: $err_code"
+    }
+    return ""
+}
+
+} ;# end puts_script
+
+        set putswrapper $puts_script ;# add this on windows, to support puts calls from a task, translated to putz calls
+    } ;# end check for windows
+    
+    set preamble "#Preamble\n\nnamespace eval tasks {}\nset ::t_pid $me\nset ::t_name $name\nset ::t_putz_output 1\nset ::t_twait_timeout 50\nset ::t_task_pause 0\nset ::t_debug 0x0\nset ::t_debug_contents end\n${putswrapper}[tproc {*}$autoimport]\n"
     if       { [llength $args] == 2 } {
         lassign $args prefix script00
         append script0 $e1 $script00 $e2
         set prefix0 {}
+        
+        
         foreach prx $prefix {
             if { [string index $prx 0] eq "-" } { ;# dont put a -command in the importing comment, it could have newlines, just indicate it was seen
                 append prefix0 " {-cmd} "
@@ -438,8 +562,8 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
     set lines [split $output \n]
     set out {}
     foreach line $lines {
-        if { [string index $line 0] eq "#" } { ;# don't import comment lines, just a blank line instead (so line numbers don't change)
-            set line "#"
+        if { [string index $line 0] eq "#" && [regexp {[\\{\\}]} $line] == 0 } { ;# don't import comment lines, just a blank comment line instead (so line numbers don't change)
+            set line "#" ;# but if the line includes braces, it must be imported anyway
         }
         append out $line \n
     }
