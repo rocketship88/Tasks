@@ -2,7 +2,7 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13a
+################################################# Tasks version 1.13c
 namespace eval tasks {  
 
 #   This version provides the windows system with a puts wrapper. puts can have 1-3 arguments. 
