@@ -436,32 +436,32 @@ proc puts {args} {
         lassign $pargs ch data
         if       { $ch eq "stderr" } {
             if { $nlflag } {
-                putz -nonewline $data red
+                tasks::putz -nonewline $data red
             } else {
-                putz $data red
+                tasks::putz $data red
             }
             return ""
         } elseif { $ch eq "stdout" } {
             if { $nlflag } {
-                putz -nonewline $data normal
+                tasks::putz -nonewline $data normal
             } else {
-                putz $data normal
+                tasks::putz $data normal
             }
             return ""
         } else { ;# other channel so just pass it through
         }
     } elseif { [llength $pargs] == 1 } { ;# puts data
         if { $nlflag } {
-            putz -nonewline [lindex $pargs 0] normal
+            tasks::putz -nonewline [lindex $pargs 0] normal
         } else {
-            putz [lindex $pargs 0] normal
+            tasks::putz [lindex $pargs 0] normal
         }
         return ""
     }
     if [catch {
         t_old_puts_wrapped {*}$args
     } err_code] {
-        putz "t_old_puts_wrapped: $err_code"
+        tasks::putz "t_old_puts_wrapped: $err_code"
     }
     return ""
 }
@@ -498,7 +498,7 @@ proc puts {args} {
     }
 
     set script0 "" ;# place another if/catch around the entire script, to catch things like namespace eval missing
-    append script0 "if \[catch \{\n" $script "\n" "\} err_code_Task_Create\] \{ " "\n" "    tsv::set tvar $name,error \$err_code_Task_Create\n    package require Tk; tk_messageBox -title {Task create error} -message \$err_code_Task_Create\n    vwait ::forever2\n\}"  
+    append script0 "if \[catch \{\n" $script "\n" "\} err_code_Task_Create err_code_Task_Create_details\] \{ " "\n" "    tsv::set tvar $name,error \$err_code_Task_Create\n    package require Tk; tk_messageBox -title {Task create error} -message \"\$err_code_Task_Create \n\n \$err_code_Task_Create_details\"\n    vwait ::forever2\n\}"  
     set script $script0
     set tid [thread::create $script]
     
@@ -518,6 +518,15 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
     foreach arg $args {
         if { [string index $arg 0] eq "-" } {
             append output [string range $arg 1 end] "\n"
+        } elseif { [string index $arg 0] eq "+" } {
+            if       { [string first "+debug=" $arg] == 0} { ;# this is the path to the debugger code to source
+                set path [string range $arg 7 end]
+                set command "source \{$path\}\nset ::___zz___(bp_messages_default) 1"
+            } else { ;# its's a proc name to instrument
+                set file [string range $arg 1 end]
+                set command "eval \[instrument+ $file\]"
+            }
+            append output $command "\n"
         } else {
             set found 0
             
