@@ -2,7 +2,7 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13c
+################################################# Tasks version 1.13d
 namespace eval tasks {  
 
 #   This version provides the windows system with a puts wrapper. puts can have 1-3 arguments. 
@@ -522,9 +522,11 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
             if       { [string first "+debug=" $arg] == 0} { ;# this is the path to the debugger code to source
                 set path [string range $arg 7 end]
                 set command "source \{$path\}\nset ::___zz___(bp_messages_default) 1"
+#               puts "path= |$path| command= |$command| "
             } else { ;# its's a proc name to instrument
                 set file [string range $arg 1 end]
                 set command "eval \[instrument+ $file\]"
+#               puts "file= |$file| command= |$command| "
             }
             append output $command "\n"
         } else {
@@ -555,8 +557,8 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
                         }
                         set space " "
                     }
-#                   No newline needed because info body may return a
-#                   value that starts with a newline
+#                       No newline needed because info body may return a
+#                       value that starts with a newline
                     append output  "} {"
                     append output   [info body $proc]
                 append output "}\n"
@@ -2803,6 +2805,7 @@ proc twidgets {} {
                 $top.sw setwidget $top.sw.t   ;# Make ScrolledWindow manage the Tree widget
                 update                ;# Process all UI events before moving on.
                 $top.sw.t bindText <1> +tasks::wtree_:_node_puts
+                $top.sw.t bindText <3> "+$top.sw.t opentree "
                 set ::wtree_queued_inserts {}
                 wm geom $top 466x326+52+52
                 if { [string range $::t_debug 0 1] eq "0x"} {
@@ -2862,7 +2865,17 @@ proc twidgets {} {
             tasks::putz ""
             tasks::putz  $args green
             wtree_:_node_lw $args
-            catch {tasks::putz "[pack info $args]" green}
+            
+            if [catch {
+                set zzz [pack info $args]
+                putz "pack: $zzz" green
+            } err_code] {
+                if [catch {
+                    set zzz [grid info $args]
+                    putz "grid: $zzz" green
+                } err_code] {
+                }
+            }
             #   clipboard clear ; clipboard append $args
         }
         proc wtree_:_node_lw {widget} {   # list a widget
