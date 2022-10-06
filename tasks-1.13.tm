@@ -2,7 +2,7 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13d
+################################################# Tasks version 1.13c
 namespace eval tasks {  
 
 #   This version provides the windows system with a puts wrapper. puts can have 1-3 arguments. 
@@ -479,7 +479,7 @@ proc puts {args} {
         
         
         foreach prx $prefix {
-            if { [string index $prx 0] eq "-" } { ;# dont put a -command in the importing comment, it could have newlines, just indicate it was seen
+            if { [string index $prx 0] eq "-" || [string index $prx 0] eq "#"} { ;# dont put a -command in the importing comment, it could have newlines, just indicate it was seen
                 append prefix0 " {-cmd} "
             } else {
                 append prefix0 " " $prx " "
@@ -516,8 +516,10 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
     set once_tasks 1
     set output {}
     foreach arg $args {
-        if { [string index $arg 0] eq "-" } {
+        if { [string index $arg 0] eq "-"  } {
             append output [string range $arg 1 end] "\n"
+        } elseif { [string index $arg 0] eq "#"} {
+            append output $arg  "\n"
         } elseif { [string index $arg 0] eq "+" } {
             if       { [string first "+debug=" $arg] == 0} { ;# this is the path to the debugger code to source
                 set path [string range $arg 7 end]
