@@ -7,8 +7,7 @@ set ::___zz___(auto_list_default) 1 ;# this sets the auto list checkbox to this 
 set ::___zz___(bp_messages_default) 0 ;# this sets the no bp messages checkbox to this value at first creation of checkbox
 set ::___zz___(console_hack) 0      ;# if 1, installs a console hack to allow an empty <cr> line on console, repeats last command (handy for go+)
 set ::___zz___(tooltips) 1000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
-set ::___zz___(tooltipsbuiltin) 1   ;# if > 0 use hobb's tooltip package, at bottom of this file
-
+set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file
 set ::___zz___(use_ttk) 0           ;# if 1, the windows use the themed ttk
 set ::___zz___(max_size) 3000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
 set ::___zz___(max_history) 50      ;# the maximum number of commands saved in the 2 command histories (command and uplevel)
@@ -103,10 +102,28 @@ proc comma {num {sep ,}} {
 
 }
 
+proc parray {a {pattern *} {sort -dictionary} args} { ;# default dictionary sort  <<<< change
+    upvar 1 $a array
+    if {![array exists array]} {
+        return -code error "\"$a\" isn't an array"
+    }
+    set maxl 0
+    set names [lsort {*}$sort {*}$args [array names array $pattern]] ;# other sort options <<< change
+    foreach name $names {
+        if {[string length $name] > $maxl} {
+            set maxl [string length $name]
+        }
+    }
+    set maxl [expr {$maxl + [string length $a] + 2}]
+    foreach name $names {
+        set nameString [format %s(%s) $a $name]
+        puts stdout [format "%-*s = %s" $maxl $nameString $array($name)]
+    }
+}
 
 # note: several procs in this file have variable names, to allow for easier changing of their names
 proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
-
+    set w [string map {" " _} $w] ;# window names with spaces are a problem, change to _
     set me $::___zz___(vw+) ;# name of this procedure, used for recursion, callbacks, and help
     set go $::___zz___(go+) ;# name of the go from breakpoint command, used in a callback
 
@@ -379,9 +396,9 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             set cmd "$me {$pat} {$ww} {$wid} {$alist0}" ;# default pattern, so use the given list
         }
 
-        bind  $w.f1.b1 <1>          [list eval $cmd]    ;# click on refresh will rebuild with more/less variables and update arrays
-#       bind  $w.f1.b1 <Alt-1>      [list puts $cmd]    ;# shift click on refresh will rebuild with more/less variables
-        bind  $w.f1.b1 <Shift-1>  [list $me - $w 0]     ;# shift click on refresh will only update arrays
+        bind  $w.f1.b1 <ButtonRelease-1>        $cmd                        ;# click on refresh will rebuild with more/less variables and update arrays
+        bind  $w.f1.b1 <Alt-ButtonRelease-1>    [list puts "bind: $cmd"]    ;# alt output the binding only
+        bind  $w.f1.b1 <Shift-ButtonRelease-1>  "$me - \{$w\} 0"            ;# shift click on refresh will only update arrays
         
         ${ttk}button      $w.f1.b2   -text "Go"         -command [list $go -1 $w] ;# go from breakpoint, remember the current window for refresh
         
@@ -392,28 +409,28 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 
             if { ! [info exist ::___zz___(cb2,$ww)] } { ;# window may pre-exist, keep value, this one is for the automatic code listing on stdout
                 set ::___zz___(cb2,$ww)  $::___zz___(auto_list_default) ;# got to set it now, so we use it now
-                after 100 "set ::___zz___(cb2,$ww)  $::___zz___(auto_list_default)" ;#but again so the window manager has time to run
+                after 100 "set {::___zz___(cb2,$ww)}  {$::___zz___(auto_list_default)}" ;#but again so the window manager has time to run
             }
             
             if { ! [info exist ::___zz___(cb3,$ww)] } { ;# window may pre-exist, keep value, this one is for the automatic code listing on stdout
                 set ::___zz___(cb3,$ww)  0 ;# got to set it now, so we can use it below
-                after 100 "set ::___zz___(cb3,$ww) 0" ;# for local breakpoints, we include the window name so this is window specific breakpoint disabling
+                after 100 "set {::___zz___(cb3,$ww)} 0" ;# for local breakpoints, we include the window name so this is window specific breakpoint disabling
             }
             if { ! [info exist ::___zz___(cb4,$ww)] } { ;# window may pre-exist, 
                 set ::___zz___(cb4,$ww)  $::___zz___(bp_messages_default) ;# got to set it now, so we can use it below
-                after 100 "set ::___zz___(cb4,$ww) $::___zz___(bp_messages_default)" ;# this disables the messages about stopping at a breakpoint, with user message, and then continuing
+                after 100 "set {::___zz___(cb4,$ww)} $::___zz___(bp_messages_default)" ;# this disables the messages about stopping at a breakpoint, with user message, and then continuing
             }
             if { ! [info exist ::___zz___(cb5,$ww)] } { ;# window may pre-exist, 
                 set ::___zz___(cb5,$ww)  0 ;# got to set it now, so we can use it below
-                after 100 "set ::___zz___(cb5,$ww) 0" ;# shows experimental instrumentation code
+                after 100 "set {::___zz___(cb5,$ww)} 0" ;# shows experimental instrumentation code
             }
             if { ! [info exist ::___zz___(cb6,$ww)] } { ;# window may pre-exist, 
                 set ::___zz___(cb6,$ww)  0 ;# got to set it now, so we can use it below
-                after 100 "set ::___zz___(cb6,$ww) 0" ;# unused checkbox
+                after 100 "set {::___zz___(cb6,$ww)} 0" ;# unused checkbox
             }
             if { ! [info exist ::___zz___(cb7,$ww)] } { ;# window may pre-exist, 
                 set ::___zz___(cb6,$ww)  0 ;# got to set it now, so we can use it below
-                after 100 "set ::___zz___(cb6,$ww) 0" ;# unused checkbox
+                after 100 "set {::___zz___(cb6,$ww)} 0" ;# unused checkbox
             }
         }
         # now that we set the checkbuttons variables before creating the checkbuttons, the wm timing seems to not be an issue any longer
@@ -437,7 +454,7 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             }
         }
         set topguy [winfo toplevel $w]
-        set tcmd "wm attributes $topguy -topmost \$::___zz___(cb6,$ww)"
+        set tcmd "wm attributes {$topguy} -topmost \$::___zz___(cb6,$ww)"
 
         ${ttk}checkbutton $w.f2.cb6 -text "On Top       " -variable ::___zz___(cb6,$ww) -command $tcmd 
         ${ttk}checkbutton $w.f2.cb7 -text "Manual Geom" -variable ::___zz___(cb7,$ww) -command $tcmd 
@@ -471,6 +488,7 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         set the_ns ""
         set the_children {}
         foreach child $children {
+
             set kind [winfo class $child]
             if { $kind eq "Label" } {
                 lappend the_children [$child cget -text]
@@ -488,7 +506,9 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 vwdebug::do_destroy $kind $child
             }   
         }
+
 #       vwait ::ffff
+
         # need to delete the namespace here - nope, we don't do it
 
 #       namespace delete $the_ns
@@ -502,12 +522,12 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 
         
 
-        set cur_bind [bind $w.f1.b1 <1>] ;# current binding on the refresh button
+#       set cur_bind [bind $w.f1.b1 <1>] ;# current binding on the refresh button ***** this is NOT needed, just comment out now
 
-        bind $w.f1.b1 <1> {}             ;# remove binding so we can replace him (not add to him)
-        lset cur_bind 1 4 $childrenx
+#       bind $w.f1.b1 <1> {}             ;# remove binding so we can replace him (not add to him)
+#       lset cur_bind 1 4 $childrenx
 
-        bind $w.f1.b1 <1> $cur_bind
+#       bind $w.f1.b1 <1> $cur_bind
         
 
 #       vwait ::ffff
@@ -556,6 +576,7 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         set zok 1
         set zerror ""
 # ---------------------------------------------- variable is an array setup label/entry for type array -----------------
+
         if { [string range $j 0 1] eq "()" } {
             vwdebug::do_label 1 $w.l$n -width $maxwid  -text "${i}()" -anchor w  -font "$size" -bd 1 -relief groove
 
@@ -604,10 +625,14 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 set zok 0
             }
 # -------------------------------------------------------------labels/entry for variable types or arr(var) also not an array type --------------------------------
+
 #       vwait ::ffff
+
             
             vwdebug::do_label 2 $w.l$n -width $maxwid -text $i -anchor w  -font "$size"  -bd 1  -relief groove
+
 #       vwait ::ffff
+
             if { ! $zok  } {
 
 #               continue
@@ -874,6 +899,9 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
         set stophere 1
     }
     if { $::___zz___(cb1) || $nobreak} {
+        if {! $nomessage } {
+            puts stderr "AlertPoint   [expr {(   $::___zz___(bpnum) + 1   )}]  :  $message"
+        }
         incr ::___zz___(bpnum)
         return
     }
@@ -906,13 +934,13 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
             if { [info exist ::___zz___(bwidget)] && $::___zz___(bwidget) == 1} {
                 set bound [bind $vwindow.sw.f.frame.f1.b1 <Shift-1>]
 
-                catch {eval $bound}
+#               catch {eval $bound}
 #               catch {$vwindow.sw.f.frame.f1.b1 invoke} ;# we've removed the -command and use only the bindings, so can't invoke now
 
             } else {
                 set bound [bind $vwindow.f1.b1 <Shift-1>]
 
-                catch {eval $bound}
+#               catch {eval $bound}
 #               catch {$vwindow.f1.b1 invoke}
 
             }
@@ -1133,10 +1161,17 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
             if { $size < 6 } {
                 set size 6
             }
-            
         }
         set tfont "$font $size"
         $w config -font "$font $size" -tabs "[expr {$::___zz___(tabsize) * [font measure $tfont 0]}] left"
+    } elseif { $func eq "refresh" } {           ;# refresh arrays on windows
+        set window [lindex $args 0 ]
+        if [catch {
+            vw+ - .${window}.sw.f.frame 0 {}
+        } err_code] {
+            return $err_code 
+        }
+        return "ok"
     } elseif { $func eq "tab" } {           ;# see if the current line is a complete command, if not, find the end on following lines
         set ::___zz___(tabsize) [lindex $args 0 ]
         $::___zz___(util+) fontsize .lbp_console.cframe.text +1 ;# bigger/smaller to adjust
@@ -1349,7 +1384,7 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
             }
          }
 #       la ::___zz___
-#       Putz "list $n = ( $::___zz___(history,$n) )"
+#       putz "list $n = ( $::___zz___(history,$n) )"
     } elseif {  $key eq "Up"  } {
         if { [llength $::___zz___(history,$n) ] <= 0 } {
             return
@@ -2099,15 +2134,17 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         bind  .lbp_console.xframe.entry <Key-Up> [list $::___zz___(util+) enter-callback 2 %W %K]
         bind  .lbp_console.xframe.entry <Key-Down> [list $::___zz___(util+) enter-callback 2 %W %K]
         bind .lbp_console.xframe.entry <MouseWheel> [list $::___zz___(util+) enter-callback 2 %W %D]
-		bind .lbp_console.xframe.entry <4> 			[list $::___zz___(util+) enter-callback 2 %W 1]
-		bind .lbp_console.xframe.entry <5> 			[list $::___zz___(util+) enter-callback 2 %W -1]
+        bind .lbp_console.xframe.entry <4>          [list $::___zz___(util+) enter-callback 2 %W 1]
+        bind .lbp_console.xframe.entry <5>          [list $::___zz___(util+) enter-callback 2 %W -1]
         
         frame       .lbp_console.uframe ;# frame with uplevel command execute entry
         button      .lbp_console.uframe.lab3c   -text "Uplevel:"    -font {courier 10} -command {set ::___zz___(entry3) ""; focus .lbp_console.uframe.entry} ;#-font {courier 14} 
         entry       .lbp_console.uframe.entry   -text "entry"       -textvariable ::___zz___(entry3) -font {courier 14}
 
         label       .lbp_console.uframe.label   -text "Delay" -relief raised -bd 0
+
  #      ------------------------------------------------- mouse wheel windows and linux
+
         spinbox     .lbp_console.uframe.sbox    -from 0             -to 999     -increment 1  -textvariable ::___zz___(delaya) -width 3 -font {courier 14}
         bind        .lbp_console.uframe.sbox  <MouseWheel> {apply [list {spinner value} { 
                                                             #   puts "spinnera= |$spinner|   value= |$value| "
@@ -2122,8 +2159,12 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                                                             } ] %W}                                                         
         bind        .lbp_console.uframe.sbox  <Button-5> {apply [list {spinner } { 
                                                                     $spinner invoke buttondown
-                                                            } ] %W}                                                         
+                                                            } ] %W} 
+                                                                                                                    
  #      -------------------------------------------------
+
+
+
         spinbox     .lbp_console.uframe.sbox100     -from 0             -to 999     -increment 100  -textvariable ::___zz___(delaya) -width 3 -font {courier 14}
         bind        .lbp_console.uframe.sbox100  <MouseWheel> {apply [list {spinner value} { 
                                                             #   puts "spinnera= |$spinner|   value= |$value| "
@@ -2139,6 +2180,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         bind        .lbp_console.uframe.sbox100  <Button-5> {apply [list {spinner } { 
                                                                     $spinner invoke buttondown
                                                             } ] %W} 
+                                                                                                                    
  #      -------------------------------------------------
  
         spinbox     .lbp_console.uframe.sbox10  -from 0             -to 999     -increment 10  -textvariable ::___zz___(delaya) -width 3 -font {courier 14}
@@ -2151,18 +2193,20 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                                                                 }
                                                             } ] %W %D}                                                          
 
-
         bind        .lbp_console.uframe.sbox10  <Button-4> {apply [list {spinner} { 
                                                                     $spinner invoke buttonup
                                                             } ] %W}                                                         
         bind        .lbp_console.uframe.sbox10  <Button-5> {apply [list {spinner } { 
                                                                     $spinner invoke buttondown
                                                             } ] %W} 
+                                                                                                                    
  #      -------------------------------------------------
             
         label       .lbp_console.xframe.label   -text "Precision" -relief raised -bd 0
                                                             
+                                                                                                                    
  #      -------------------------------------------------
+            
         spinbox     .lbp_console.xframe.sbox10  -from 0             -to 999     -increment 10  -textvariable ::___zz___(delayb) -width 3 -font {courier 14}
         bind        .lbp_console.xframe.sbox10  <MouseWheel> {apply [list {spinner value} { 
                                                             #   puts "spinnera= |$spinner|   value= |$value| "
@@ -2179,7 +2223,9 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         bind        .lbp_console.xframe.sbox10  <Button-5> {apply [list {spinner } { 
                                                                     $spinner invoke buttondown
                                                             } ] %W} 
+                                                                                                                    
  #      -------------------------------------------------
+            
         spinbox     .lbp_console.xframe.sbox    -from 1             -to 999     -increment 1  -textvariable ::___zz___(delayb) -width 3 -font {courier 14}
         bind        .lbp_console.xframe.sbox  <MouseWheel> {apply [list {spinner value} { 
                                                             #   puts "spinnera= |$spinner|   value= |$value| "
@@ -2196,9 +2242,13 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         bind        .lbp_console.xframe.sbox  <Button-5> {apply [list {spinner } { 
                                                                     $spinner invoke buttondown
                                                             } ] %W} 
+                                                                                                                    
  #      -------------------------------------------------
+            
         label       .lbp_console.xframe.labell  -text "Show Lines" -relief raised -bd 0
         set ::___zz___(proc_wid) 12
+        
+        
         spinbox     .lbp_console.xframe.sboxl   -from 10            -to 100     -increment 1  -textvariable ::___zz___(proc_wid) -width 3 -font {courier 14} -command [list $::___zz___(util+) showlines %W %s %d]
         bind        .lbp_console.xframe.sboxl  <MouseWheel> {apply [list {spinner value} { 
                                                             #   puts "spinnera= |$spinner|   value= |$value| "
@@ -2215,6 +2265,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         bind        .lbp_console.xframe.sboxl  <Button-5> {apply [list {spinner } { 
                                                                     $spinner invoke buttondown
                                                             } ] %W} 
+                                                                                                                    
  #      -------------------------------------------------
                                                             
                                                                                                                     
@@ -2787,20 +2838,6 @@ if { 00 } {
 }
 
 
-if { 00 } {
-sample0
-###end###
-tasks::twidgets ;# sent this
-bind ._sample.sw.f.frame.f1.b1
-bind ._sample.sw.f.frame.f1.b1 <1>
-bind ._sample.sw.f.frame.l0
-winfo children ._sample.sw.f.frame
-info commands
-info commands ._sample.sw.f.frame
-info commands ._sample.sw.f.frame*
-info commands ._sample.sw.f.frame.\[el]*
-###end###
-}
 
 
 namespace eval vwdebug {
@@ -2808,17 +2845,20 @@ namespace eval vwdebug {
     set cash(0) "inited"
     proc do_destroy {kind args} {
         variable cash
+
         if { $::___zz___(cache) } {
         # if label, clear
         # if entry, clear, remove textvariable unset readonly
             set w [lindex $args 0 ]
             if { $kind eq "Label" } {
+
                 $w config -text "\u220E"
             } else { ;# an entry
                 set var [$w cget -textvariable]
                 $w config -textvariable {} -state normal
+
                 $w delete 0 end
-                $w insert 0 "\u2400"    
+#               $w insert 0 "\u2400"    
             }
 #           vwait ::ffff
         } else {
@@ -2829,9 +2869,11 @@ namespace eval vwdebug {
     proc do_label {m args} {
         variable cash
         if { $::___zz___(cache) } {
+
             if [catch {
                 label {*}$args  ;# if it already exists, just configure after error
             } err_code] {
+
                 lassign $args name wid widv txt txtv
                 $name config $wid $widv $txt $txtv
             }
@@ -2846,10 +2888,12 @@ namespace eval vwdebug {
     proc do_entry {m args} {
         variable cash
         if { $::___zz___(cache) } {
+
             if [catch {
                 entry {*}$args
                 return
             } err_code] {
+
                 lassign $args name wid widv txt txtv
                 $name config $wid $widv $txt $txtv
             }
@@ -2861,6 +2905,7 @@ namespace eval vwdebug {
         variable cash
         if { $::___zz___(cache) } {
             lassign $args w b
+
             tailcall bind {*}$args
         } else {
             tailcall bind {*}$args
@@ -2869,18 +2914,16 @@ namespace eval vwdebug {
     proc do_grid {args} {
         variable cash
         if { $::___zz___(cache) } {
+
             tailcall grid {*}$args
         } else {
             tailcall grid {*}$args
         }
+
     }
     
 } ;# end namespace vwdebug
-
-
 if { $::___zz___(tooltipsbuiltin) } {
-
-
 # tooltip.tcl --
 #
 #       Balloon help
