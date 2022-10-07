@@ -9,11 +9,27 @@ The Tasks arglist approach considerably reduces the need to learn new concepts. 
 
 Tasks provide [Tproc] an extension to the proc command. 
 
-Tasks include development tools and a simple Tk console for debugging. Tasks are source-able pure tcl. The wiki page at 
+Tasks include development tools and a simple Tk console for debugging. 
+
+!!! NEW !!! 
+
+The vw debugging system has been added which is a standalone debugging system that includes Tk variable tracking via entry widgets plus several in-code breakpoints for procedures, TCLOO methods, and global scope code. Tproc's, Tasks, and tgroup's now have support for loading it into 1 or more Task/threads. 
+
+The included instrumenter can dynamically add breakpoints to a proc or method which can then be single stepped both manually or in auto-step run/stop mode to watch data change. The current instruction line is indicated with an -> in a source code window. Stepping speed can be dynamically controlled with 3 digit spinboxes (000 - 999 ms between instructions) to better visualize a program's execution.
+
+The run mode can also be used as a simple dynamic profiler by visualizing which lines are being executed in a procedure when run at moderate speed. 
+
+One can choose when and which procedures or methods to instrument and non-instrumented code runs at full tcl/tk speed. The instrumenter saves the original code (for procs only at present) which can be restored and re-instrumented dynamically. It works with Linux or Windows. The Linux Tk bug (multiple threads calling Tk at startup causing periodic crashes) appears to be fixed in version 8.6.12. 
+
+A separate pdf manual is included with a section on using it with tasks (or just in the main thread). In the works is a YT video to demonstrate the tool.
+
+
+
+Tasks AND the debugger are source-able pure tcl. The wiki page at 
 
 https://wiki.tcl-lang.org/page/Tasks
 
-provides all the documentation, examples and youtube links to videos with intros and in-depth code walkthroughs to get you going with Tasks.
+provides all the documentation for tasks, examples and youtube links to videos with intros and in-depth code walkthroughs to get you going with Tasks.
  
 Cpu core counts are on the rise. Tcl Tasks can gently ease one into concurrent programming to better utilize these new machines.
 
