@@ -49,6 +49,8 @@ set ::___zz___(cb1) 0           ;# the global wide breakpoint disable flag, set 
 set ::___zz___(level) 0         ;# 
 set ::___zz___(delay) 0         ;# debugging delay times to slow down what's going on
 set ::___zz___(goto) -1         ;# debugging goto line number
+set ::___zz___(go-window) {}    ;# debugging goto window/proc name
+set ::___zz___(lbp+,line) -1    ;# current line in a code window - 1
 set ::___zz___(tail) 0          ;# used for a tailcall to update lines w/o continuing
 set ::___zz___(bpnum) 0
 set ::___zz___(delaya) 0        ;# spinbox for delaying stepping animation
@@ -58,9 +60,13 @@ set ::___zz___(waita) 0         ;# variable to use for a vwait delay
 set ::___zz___(trace-level) 0   ;# keep track of enter/leave so if we are in a lower level instrumented proc, we wait to turn it yellow on leave
 set ::___zz___(queued_cmd) {}   ;# so we can do an uplevel
 set ::___zz___(lbp-ontop)  0    ;# the code window on top checkbox
+set ::___zz___(lbp-lock) {}     ;# used to lock the code window in place
+set ::___zz___(lbp-locka) {}
+set ::___zz___(lbp-lockb) {}
 set ::___zz___(updatesome)  10  ;# update at least once this many steps
 set ::___zz___(updatesomeN)  0  ;# counter to use with updatesome
 set ::___zz___(gangcb)       0  ;# checkbutton for gang moving of data windows, first window moves all together
+set ::___zz___(gang)         {} ;# 
 set ::___zz___(cache)       1   ;# cache window label/entries - too slow on linux w/o this
 #set ::___zz___(c,*)            ;# array data for window caching, do not modify
 
@@ -796,8 +802,11 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
     set stophere 0
     if { $::___zz___(goto) >= 0 } {
         if { [expr {(   $::___zz___(lbp+,line) + 1    )}] ==  $::___zz___(goto) } {
-            set stophere 1  
-            set ::___zz___(goto) -1 
+            if {  [lindex [vwdebug::get_frames] 0 ]  eq $::___zz___(go-window)} {
+                set stophere 1  
+                set ::___zz___(goto) -1 
+            } else {
+            }
         }
     } else {
         set stophere 1
@@ -981,11 +990,12 @@ proc $::___zz___(go+) {{skip -1} {window ""}} {
     if { $skip < -1 } {
         set ::___zz___(goto) [expr {(   0 - $skip   )}]
         set skip -1
+        set curr [lindex [vwdebug::get_frames] 0 ]
+        set ::___zz___(go-window) $curr ;# this will be the target proc of a go to line
     }
     if { $skip > 0 } {
         set ::___zz___(skips) [expr {(   $skip - 1   )}]
     }
-    set ::___zz___(go-window) $window ;# not really using this anymore, but lets keep it anyway
     if {![info exists ::___zz___(bp)] ||  ($::___zz___(bp) == 1) } {
         puts stderr "Not currently waiting at a breakpoint after $::___zz___(bpnum) steps"
         set ::___zz___(bp) 1 ;# set it regardless
@@ -1444,11 +1454,16 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 # ------------------------------------------------------  debug command, open window with debug data  ------------------------
 
     } elseif { $func eq "debug" } { ;# a vw+ window with many debugger array values
+        if { [info exist ::t_name] } {
+            set debugger_name "debugger_$::t_name"
+        } else {
+            set debugger_name "debugger_main"
+        }
         $::___zz___(vw+) {  ::___zz___(bpnum)           ::___zz___(proc_wid)    ::___zz___(delay)       ::___zz___(lbp-lock)    ::___zz___(lbp-locka)  ::___zz___(lbp-lockb)    
                             ::___zz___(cb1)             ::___zz___(delaya)      ::___zz___(skips)       ::___zz___(delayb_count)
-                            ::___zz___(skip_modulo)     ::___zz___(goto)        ::___zz___(delayb)         
+                            ::___zz___(skip_modulo)     ::___zz___(goto)        ::___zz___(go-window)   ::___zz___(lbp+,line)   ::___zz___(delayb)       
                             ::___zz___(bp_messages_default)                     ::___zz___(updatesome)  ::___zz___(updatesomeN) ::___zz___(gang) ::___zz___(vws)
-        }  debugger ;#  ::___zz___() 
+        }  $debugger_name ;#  ::___zz___() 
 # ------------------------------------------------------  lp command, functional back to caller  ------------------------
 
     } elseif { $func eq "lp" } {
@@ -2662,6 +2677,35 @@ namespace eval vwdebug {
         }
 
     }
+    proc get_frames {} {
+        set result {}
+        for {set m 0} {$m > -10} {incr m -1} {
+            if [catch {
+                set up      [ info frame $m]
+                if { [dict get $up type ] eq "proc"} {
+                    set p {}
+                    if       { [dict exists $up proc] } {
+                        set p [dict get $up proc]
+                    } elseif {  [dict exists $up method] &&  [dict exists $up class]} {
+                        set mth [dict get $up method]
+                        set cla [dict get $up class]
+                        set p $cla-$mth
+                    }
+                    if { $p != {} } {
+                        lappend result $p
+                    }
+                }
+            } err_code] {
+#               if { $err_code  ne ""} {
+#               }
+                
+            }
+        }
+        
+        return $result
+        
+    }
+
     
 } ;# end namespace vwdebug
 if { $::___zz___(tooltipsbuiltin) } {
