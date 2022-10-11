@@ -4,7 +4,7 @@
 
 set ::___zz___(proc_wid) 15         ;# the number of lines to show on either side of a breakpoint line
 set ::___zz___(auto_list_default) 1 ;# this sets the auto list checkbox to this value at first creation of checkbox
-set ::___zz___(bp_messages_default) 0 ;# this sets the no bp messages checkbox to this value at first creation of checkbox
+set ::___zz___(bp_messages_default) 1 ;# this sets the no bp messages checkbox to this value at first creation of checkbox
 set ::___zz___(console_hack) 0      ;# if 1, installs a console hack to allow an empty <cr> line on console, repeats last command (handy for go+)
 set ::___zz___(tooltips) 1000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
 set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file
@@ -126,7 +126,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
     set w [string map {" " _} $w] ;# window names with spaces are a problem, change to _
     set me $::___zz___(vw+) ;# name of this procedure, used for recursion, callbacks, and help
     set go $::___zz___(go+) ;# name of the go from breakpoint command, used in a callback
-
     if { $pat eq "?" } {
         puts "$me  pattern   window   width   - patterns are \[string match\] type"
         puts "$me  {a list}  window   width   - alt form, list of >1 variable names or patterns"
@@ -198,7 +197,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         return [$me . $w $wid $pat] ;# allow list to be in first parameter, we recurse with list at the end
     }
     set alist0 $alist ;# remember how we were called for later refresh
-
 # ---------------------------------------------- Bwidget  --------------------------------------------------------------
 
     if { ! [info exist ::___zz___(bwidget)] } { ;# if variable does not exist, try to use it
@@ -210,27 +208,21 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             set ::___zz___(bwidget) 0
         }
     } else {
-
     }
 # ---------------------------------------------- special entry from recursion  -----------------------------------------
     if { $pat eq "-" } { ;#refresh array entries index values, internal call via recursion
-
         set windows [winfo children $w]
         set k [string length $w]
         incr k
-
-
         foreach window $windows {
             set kind [string index $window $k]
             set wnum [string range $window $k+1 end]
-
             if { $kind eq "l" } { ;# this is the label on the left, we derive the entry on right
                 set var [$window cget -text]
                 if { [string range $var end-1 end] eq "()"} {
                     set avar [string range $var 0 end-2]
                     set ent "${w}.e$wnum" ;# the corresponding entry widget
                     set indices [lsort -dictionary [array names ::$avar]] ;# sort the array indices to put into entry
-
                     $ent configure -state normal  ;# make it writeable temporarily
                     $ent delete 0 end
                     $ent insert 0 $indices
@@ -253,19 +245,15 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
     if { $w eq "." } {
         set w ".vw"
     }
-
     if { [string index $w 0] ne "." } {
         set w .$w ;# allow user to leave off the leading .
-
     }
     if { ![info exist ::___zz___(vws)] || $w ni  $::___zz___(vws)} {
         lappend ::___zz___(vws) $w ;# keep a list of possible windows to refresh
     }
 # ---------------------------------------------- setup ** or list of vars ----------------------------------------------
     if { $pat eq "**" || $alist ne ""} {
-
         if { $alist ne "" } {
-
             set a {}
             foreach item $alist {
                 if { [string match {*(*} $item] } { ;# if it's got ()'s  then just use it, it's not a pattern but a specific array element
@@ -277,59 +265,45 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 }
                 
             }
-
             
 #           set a $alist ;# this was before we allowed the list to have patterns for each item
         } else {
             set a [lsort -dictionary [info global ${pat}*]]
         }
-
         set argsn [list]
-
         foreach gvar $a {
             if { $gvar in $::___zz___(lg-skip)  && $pat eq "**" && [llength $alist] == 0} { ;# no pattern given, use only user globals
-
                 continue
             }
             if {[array exists ::$gvar]} { ;# it is an array get some indices only
-
                 set val "() [lsort -dictionary [array names ::$gvar]]"
                 lappend argsn [list $gvar $val]
             } elseif { [info exists ::${gvar}] } {
                 lappend argsn [list $gvar {}]
             } else {
-
                 lappend argsn [list $gvar {}] ;# variable doesn't exist yet, treat as non-array, only occurs with user provided list
             }
         }
 # ---------------------------------------------- setup single pattern we append *  -------------------------------------
     } elseif { [llength $pat] == 1 } {
-
         if { [string match "*::*" $pat] } { ;# if we have :: then it's a namespace lookup
             if { [string range $pat end-2 end] ne "::"} {
                 
 #               set pat ${pat}:: ;# if there are any :: in it, we need to have :: following, if they are not there, we'll add them
             }
             set alist [lsort [info var ${pat}*]]
-
-
         } else {
-
             set alist [lsort [info glob ${pat}*]]
         }
-
         if { [llength $alist] >= 1 } {
-
             $me $pat $w $wid $alist ;# call ourselves with the new manual list provided, if at least 1
         } else {
-
             error "No globals match ${pat}*"
         }
         return
     } else {
         should-not-happen
     }
-
 # ---------------------------------------------- does the window already exist  ----------------------------------------
 
     set ww .[lindex [split $w .] 1] ;# top level in case it .a.b.c we want just .a
@@ -338,9 +312,7 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         set gg [split $g +]
         set oldgeom +[lindex $gg 1]+[lindex $gg 2]
         set reincarnated 1 ;# later we'll use this oldgeom for the position, but use the new size that is computed
-
     } else {
-
         set reincarnated 0
     }
 
@@ -360,7 +332,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             bind $w <MouseWheel> "$w.sw.f yview scroll \[expr {-%D/60}\] units"
             pack $sw -fill both  -expand yes
             set w [$sff getframe]
-
         } else {
             toplevel $w
         }
@@ -372,7 +343,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         } else {
             # w is ok if there's no bwidgets
         }
-
     }
     
     if { ! $exists } {  
@@ -380,7 +350,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         frame $w.f1 -relief groove  -padx 5
         frame $w.f2 -relief groove -background green
         grid $w.f1 $w.f2
-
         if { $::___zz___(use_ttk) } {
             set ttk "ttk::"
         } else {
@@ -395,7 +364,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         } else {
             set cmd "$me {$pat} {$ww} {$wid} {$alist0}" ;# default pattern, so use the given list
         }
-
         bind  $w.f1.b1 <ButtonRelease-1>        $cmd                        ;# click on refresh will rebuild with more/less variables and update arrays
         bind  $w.f1.b1 <Alt-ButtonRelease-1>    [list puts "bind: $cmd"]    ;# alt output the binding only
         bind  $w.f1.b1 <Shift-ButtonRelease-1>  "$me - \{$w\} 0"            ;# shift click on refresh will only update arrays
@@ -406,7 +374,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             if { ! [info exist ::___zz___(cb1)] } {
                 after 100 "set ::___zz___(cb1) 0" ;# global wide breakpoints disable, all windows use same, 1 check sets all checks
             }
-
             if { ! [info exist ::___zz___(cb2,$ww)] } { ;# window may pre-exist, keep value, this one is for the automatic code listing on stdout
                 set ::___zz___(cb2,$ww)  $::___zz___(auto_list_default) ;# got to set it now, so we use it now
                 after 100 "set {::___zz___(cb2,$ww)}  {$::___zz___(auto_list_default)}" ;#but again so the window manager has time to run
@@ -455,7 +422,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         }
         set topguy [winfo toplevel $w]
         set tcmd "wm attributes {$topguy} -topmost \$::___zz___(cb6,$ww)"
-
         ${ttk}checkbutton $w.f2.cb6 -text "On Top       " -variable ::___zz___(cb6,$ww) -command $tcmd 
         ${ttk}checkbutton $w.f2.cb7 -text "Manual Geom" -variable ::___zz___(cb7,$ww) -command $tcmd 
         
@@ -478,17 +444,14 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 # ---------------------------------------------- reuse window partially ------------------------------------------------
 
     } else {
-
 #       vwait ::fff
         set children [winfo children $w]
 #       if { $::___zz___(delay) > 100 } {
-
 #       }
         set got1 1
         set the_ns ""
         set the_children {}
         foreach child $children {
-
             set kind [winfo class $child]
             if { $kind eq "Label" } {
                 lappend the_children [$child cget -text]
@@ -498,7 +461,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 if { $got1 } {
                     set got1 0
                     set the_ns [lindex $splitwidget 1]
-
                 }
                 if { $::___zz___(delay) > 0 } {
                     wait $::___zz___(delay)
@@ -506,30 +468,20 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 vwdebug::do_destroy $kind $child
             }   
         }
-
 #       vwait ::ffff
-
         # need to delete the namespace here - nope, we don't do it
-
 #       namespace delete $the_ns
-
         set childrenx {}
         foreach item $argsn {
             lappend childrenx [lindex $item 0 0]    
         }
-
-
-
         
 
 #       set cur_bind [bind $w.f1.b1 <1>] ;# current binding on the refresh button ***** this is NOT needed, just comment out now
-
 #       bind $w.f1.b1 <1> {}             ;# remove binding so we can replace him (not add to him)
 #       lset cur_bind 1 4 $childrenx
-
 #       bind $w.f1.b1 <1> $cur_bind
         
-
 #       vwait ::ffff
     }
 # ---------------------------------------------- process argsn a list of variable names --------------------------------
@@ -552,12 +504,10 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         if { $maxwid < $len } {
             set maxwid $len
         }
-
     }
 # ---------------------------------------------- second pass on argsn, above was to compute max length of variable names -----------------------------------------
     
     set n 0
-
     
     if { $alist ne "" && $pat eq "**"} { ;# a specific list, don't sort use order given
         set argsn_sort_maybe $argsn
@@ -571,23 +521,18 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         }
         set i [lindex $ii 0]
         set j [lindex $ii 1]
-
-
         set zok 1
         set zerror ""
 # ---------------------------------------------- variable is an array setup label/entry for type array -----------------
 
         if { [string range $j 0 1] eq "()" } {
             vwdebug::do_label 1 $w.l$n -width $maxwid  -text "${i}()" -anchor w  -font "$size" -bd 1 -relief groove
-
             
             vwdebug::do_entry 1  $w.e$n -width $wid -textvariable {} -bg white  -font "$size"
             $w.e$n insert end [lrange $j 1 end]
             $w.e$n  configure -state readonly
-
         } else {
 # ---------------------------------------------- variable is NOT an array ----------------------------------------------
-
             
             set sizemax $::___zz___(max_size)
             set sanity -1
@@ -598,7 +543,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 set it $i
                 if { ! [string match "*::*" $it] } { ;# we need to access it as global from here, so add the ::
                     set it "::$it"
-
                 }
 #               set sanity [eval "string length \$$it"]
                 set sanity [string length [set $it]]
@@ -609,7 +553,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                     set nspace  [lindex $splitup  2 ]
                     set nname  __$nspace
                     set fname "::${nspace}::${nname}" ;# check for our proc name, it's the namespace name used twice with extra __
-
                     set zok 0
                     set zerror "Too large to safely monitor : $sanity  = $sanityd"
                     if { $it eq $fname } { ;# if it's ours, we'll be less cautious and allow for a longer string, since it's the entire proc code
@@ -625,16 +568,11 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 set zok 0
             }
 # -------------------------------------------------------------labels/entry for variable types or arr(var) also not an array type --------------------------------
-
 #       vwait ::ffff
-
             
             vwdebug::do_label 2 $w.l$n -width $maxwid -text $i -anchor w  -font "$size"  -bd 1  -relief groove
-
 #       vwait ::ffff
-
             if { ! $zok  } {
-
 #               continue
                 vwdebug::do_entry 2 $w.e$n  -width $wid -textvariable {} -bg LightYellow1 -font "$size" ;# no text variable for this one
                 $w.e$n insert end $zerror
@@ -648,7 +586,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 
         if { $zok } {
             vwdebug::do_bind  $w.l$n <1> {apply [list {win} {
-
                     set foofoo [$win cget -text]
                     if { [string range $foofoo end-1 end] eq "()" } {
                         puts stderr "\n---------\nThe array $foofoo\n---------"
@@ -663,7 +600,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                     }
                 } ] %W}
             vwdebug::do_bind  $w.l$n <Shift-1> {apply [list {win} {
-
                     set foofoo [$win cget -text]
                     if { [string range $foofoo end-1 end] eq "()" } {
                         puts stderr "\n---------\nThe array $foofoo\n---------"
@@ -674,14 +610,12 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                         set ok 0
                         if [catch {
                             set foo2 [set ::$foofoo]
-
                             set dlen [dict size $foo2]
                             incr dlen $dlen
                             if { $dlen != $llen } {
                                 error "not a valid dictionary:\nAre there duplicates? \[llength\]= $llen vs. \[dict size\]*2 = $dlen"
                                 set ok 0
                             } else {
-
                                 set ok 1
                             }
                         } err_code] {
@@ -689,29 +623,23 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                             set ok 0
                         }
                         if { $ok } {
-
                             set max 0
-
                             dict for {key val} $foo2 {
                                 set len [string length $key] 
                                 if { $len > $max } {
                                     set max $len
                                 }
                             }
-
                             set fstring "  %%-${max}s  =>  |%%s|" 
                             dict for {key val} $foo2 {
                                 puts [format $fstring $key $val]
-
                             }
                         } else {
-
                         }
                         
                     }
                 } ] %W}
             vwdebug::do_bind  $w.l$n <Control-1> {apply [list {win} {
-
                     set foofoo [$win cget -text]
                     if { [string range $foofoo end-1 end] eq "()" } {
                         puts stderr "\n---------\nThe array $foofoo\n---------"
@@ -727,20 +655,16 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                             set ok 0
                         }
                         if { $ok } {
-
                             set n -1
                             set fstring "  %%-4d  =>  |%%s|" 
                             foreach val $foo2 { ;# don't sort here
                                 puts [format $fstring [incr n] $val]    
                             }
-
                         } else {
-
                         }
                     }
                 } ] %W}
             vwdebug::do_bind  $w.l$n <Alt-1> {apply [list {win} {
-
                     set foofoo [$win cget -text]
                     if { [string range $foofoo end-1 end] eq "()" } {
                         puts stderr "\n---------\nThe array $foofoo\n---------"
@@ -756,15 +680,12 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                             set ok 0
                         }
                         if { $ok } {
-
                             set n -1
                             set fstring "  %%-4d  =>  |%%s|" 
                             foreach val [lsort -dictionary $foo2] { ;# alt is for a sorted list
                                 puts [format $fstring [incr n] $val]    
                             }
-
                         } else {
-
                         }
                     }
                 } ] %W}
@@ -772,24 +693,20 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 # ---------------------------------------------- end zok test for valid data put the variable and it's entry in the 2 column grid --------------------------------
             
             
-
         vwdebug::do_grid  $w.l$n $w.e$n
         incr n
     }
 # ---------------------------------------------- end argsn pass 2 ------------------------------------------------------
     
     update ;# wonder if this is needed here
-
 # ---------------------------------------------- no bwidgets easy let window size itself even if too large just reuse old geom -----------------------------------
     if {! $::___zz___(bwidget)} {
         set ww [lindex [split [wm geom $w] +] 0]
         if { $reincarnated } {
             set newgeom $oldgeom
-
         } else {
             set newgeom +-6+1
         }
-
 # ---------------------------------------------- modify GEOMETRY no bwidgets -------------------------------------------
         set ww0 .[lindex [split $w .] 1]
         if {[info exist ::___zz___(cb7,$ww0)] && $::___zz___(cb7,$ww0) == 0} {
@@ -802,7 +719,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         set width   [expr {(    min( int( ($wid + $maxwid) * 11.4) +12 , 1600)    )}] ;# no more than 1600
         if { $reincarnated } {
             set newgeom ${width}x$height$oldgeom
-
         } else {
             if [catch {
                 set nws [llength $::___zz___(vws) ]
@@ -813,16 +729,11 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             set nws [expr {(    $nws % 10   )}] ;# after this many new windows, we start placing them at the top again
             set ycord [expr {(   -6 + ($nws * 100)   )}]
             set newgeom ${width}x$height+-6+$ycord
-
         }
         set top [split $w .]
         set wtop .[lindex $top 1]
-
-
-
         if { $::___zz___(skips) <=0 || $reincarnated == 0} {
             if [catch {
-
             } err_code] {
                 puts $err_code 
             }
@@ -834,21 +745,17 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         }
     }
 
-
 # ---------------------------------------------- setup user configure callback to store the saved geometry of his new position -----------------------------------
 
     if [catch {
         set wl [split $w .]
         set ww .[lindex $wl 1]
-
         set ::___zz___(vws,$ww) [list $ww $pat $wid $alist [wm geom $ww]]
 #       set ::___zz___(vws,$ww) [list $ww $pat $wid {} [wm geom $ww]]
         bind $ww <Configure> {
             if { [llength [split %W .]] == 2 } {
-
                 lset ::___zz___(vws,%W) end [wm geom %W] ;# update to the current position and size
             } else {
-
             }
         }
     } err_code] {
@@ -865,20 +772,17 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 
 
 proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3rd, passed in from lbp+ from the windows checkbox options
-
 # ---------------------------------------------- spinbox delay setting -------------------------------------------------
 
     if { $::___zz___(delaya) > 0 } {
         set ::___zz___(waita) 0
         if [catch {
-
                     after $::___zz___(delaya) {set ::___zz___(waita) 1}
                 vwait ::___zz___(waita)
         } err_code] {
             puts stderr "probably bad delay, resetting to 0 : $err_code" 
             set ::___zz___(delaya) 0
         }
-
     }
 
 # ---------------------------------------------- try to escape early ---------------------------------------------------
@@ -911,9 +815,7 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
 # ---------------------------------------------- report every so often about skips if reporting at all and get out early -----------------------------------------
 
     if {   ($::___zz___(skips)  <= 0)   ||  (  ( $::___zz___(skips)% $::___zz___(skip_modulo) ) == 0    )       } {
-
     } else {
-
         incr ::___zz___(skips) -1
         if { ! $nomessage } {
             if { $::___zz___(skips) > 0 } {
@@ -930,19 +832,14 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
 # ---------------------------------------------- low level breakpoint try to refresh windows----------------------------
     foreach vwindow $::___zz___(vws) {
         if { [info command $vwindow] ne "" } { 
-
             if { [info exist ::___zz___(bwidget)] && $::___zz___(bwidget) == 1} {
                 set bound [bind $vwindow.sw.f.frame.f1.b1 <Shift-1>]
-
 #               catch {eval $bound}
 #               catch {$vwindow.sw.f.frame.f1.b1 invoke} ;# we've removed the -command and use only the bindings, so can't invoke now
-
             } else {
                 set bound [bind $vwindow.f1.b1 <Shift-1>]
-
 #               catch {eval $bound}
 #               catch {$vwindow.f1.b1 invoke}
-
             }
         } else {
             puts "delete vwindow= |$vwindow| "
@@ -978,7 +875,6 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
         set nobreak 1
     }
 
-
 # ---------------------------------------------- check for a queued command from a callback to implement the uplevel commands ------------------------------------
 # ---------------------------------------------- use a while loop to execute this 1 or 2 times, if we woke from callback do uplevel ------------------------------
     
@@ -992,65 +888,49 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
             }
             if { $::___zz___(bp) == 100 } { ;# do uplevel entry commands
                 if [catch {
-
                         set ok 0
                         for {set m -1} {$m > -4} {incr m -1} {
-
                             set up      [uplevel [expr {(   0-$m   )}] info frame $m]
                             set vars    [uplevel [expr {(   0-$m   )}] info vars]
-
                             if { [dict exists $up "proc" ] } {
                                 set prc [dict get $up "proc"]
-
                                 if { $prc ne "::$::___zz___(lbp+)" && $prc ne "::$::___zz___(bp+)"} {
                                     set ok [expr {(   abs($m + 1)   )}]
-
                                     break
                                 }
                             } elseif { [dict exists $up "method" ] } {
                                 set prc [dict get $up "method"]
-
                                 if { $prc ne "::$::___zz___(lbp+)" && $prc ne "::$::___zz___(bp+)"} {
                                     set ok [expr {(   abs($m + 1)   )}]
-
                                     break
                                 }
                             }
                         }
-
                         if [catch {
                             set ok2 [uplevel $ok info vars]   ;# $::___zz___(queued_cmd)
-
                             puts stderr "result from uplevel for: \u3010 $::___zz___(queued_cmd) \u3011 :" 
                             set ok2 [uplevel $ok $::___zz___(queued_cmd)]   ;# alright do it in his level
                             puts "\u3010$ok2\u3011"
-
                         } err_code] {
                             puts $err_code
                         }
-
-
                 } err_code] {
                         puts $err_code 
                 }
             } elseif {$::___zz___(bp) == 101 || $::___zz___(bp) == 102 } { ;#list frames (102, just the cmd entries)
-
                         if { $::___zz___(bp) == 102  } {
                             puts "------------- -- ---------------"
                         }
                         for {set m -10} {$m <= 0} {incr m} {
                             if [catch {
-
                                 set up      [ info frame $m]
 #                               set vars    [uplevel [expr {(   0-$m   )}] info vars]
                                 if { [dict exists $up proc] } {
                                     set p [dict get $up proc] 
                                     if {$p eq "::$::___zz___(bp+)" || $p eq "::$::___zz___(lbp+)" } {
-
                                         continue
                                     }
                                 }
-
                                 if { $::___zz___(bp) == 101 } {
                                     puts "------------- $m ---------------"
                                 }
@@ -1078,7 +958,6 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
                                 
                             } err_code] {
                                 if { $err_code  ne ""} {
-
                                 }
                                 
                             }
@@ -1145,7 +1024,6 @@ proc dtracer {args} {
 
 proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the list proc as sub commands, plus many more now
 
-
 # ------------------------------------------------------ utility fontsize ----------------------------------------------
 
     if       { $func eq "fontsize" } {
@@ -1164,6 +1042,47 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
         }
         set tfont "$font $size"
         $w config -font "$font $size" -tabs "[expr {$::___zz___(tabsize) * [font measure $tfont 0]}] left"
+    } elseif { $func eq "init_method" } {           ;# clean up old method data
+        lassign $args thens vars
+        set cur [info vars ::${thens}::*]
+        set widgets [winfo children .$thens.sw.f.frame]
+        
+        
+        if [catch {
+            set got1 1
+            set the_ns ""
+            set the_children {}
+        
+            
+            set children [winfo children .${thens}.sw.f.frame]
+            foreach child $children {
+                set kind [winfo class $child]
+                if { $kind eq "Label" } {
+                    lappend the_children [$child cget -text]
+                }
+                if { $kind ne "Frame" } { ;# kill all the labels and entries, but take the canoli - uh I mean keep the buttons etc.
+                    set splitwidget [split $child .]
+                    if { $got1 } {
+                        set got1 0
+                        set the_ns [lindex $splitwidget 1]
+                    }
+                    if { $::___zz___(delay) > 0 } {
+                        wait $::___zz___(delay)
+                    }
+                    vwdebug::do_destroy $kind $child
+                }   
+            }
+        } err_code] {
+            puts "error inside util: $err_code "
+        }
+        
+        
+        
+        namespace delete ::$thens
+#       foreach item $vars {
+#           namespace eval ::$thens  "variable $item"   
+#       }
+        return ""
     } elseif { $func eq "refresh" } {           ;# refresh arrays on windows
         set window [lindex $args 0 ]
         if [catch {
@@ -1177,12 +1096,10 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
         $::___zz___(util+) fontsize .lbp_console.cframe.text +1 ;# bigger/smaller to adjust
         $::___zz___(util+) fontsize .lbp_console.cframe.text -1
     } elseif { $func eq "completeit" } {    ;# see if the current line is a complete command, if not, find the end on following lines
-
         set nlines [lindex $args 0 ]
         set ln [lindex $args 1 ]
         incr ln -1
         set lines [lindex $args 2 ]
-
         set collect {}
         set nn 0
         for {set n $ln} {$n < $nlines } {incr n} {
@@ -1192,12 +1109,10 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
                 break
             }   
         }
-
         return [list $nn $collect] ;# return the number of lines following to not instrument
 # ------------------------------------------------------ showlines    --------------------------------------------------
 
     } elseif { $func eq "showlines" } {     ;# number of lines to show, is now immediate if one changes the spinbox for lines
-
         set ::___zz___(tail) 1
         after 0 $::___zz___(go+)
         return
@@ -1238,7 +1153,6 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
             set xx [lindex $xy 1]
             set yy [lindex $xy 2]
             set newgeom [lindex $xy 0 ]+$x+$y
-
             set y [expr {   $y + [lindex $xandy  1 ] +$extra  }]
             if { $y > ($max - 300) } {
                 set y -2
@@ -1255,34 +1169,27 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
             set ::___zz___(gang) [wm geom $w] ;# save his current position and bind him
             bind $w <Configure> [list $::___zz___(util+) gang-move %x %y]
             set ::___zz___(gangcb) 1
-
         }
         
         
         return
 # ------------------------------------------------------ gang move callback   ------------------------------------------        
     } elseif { $func eq "gang-move" } {     ;# display all frames verbose
-
         set geom $::___zz___(gang)
         regexp {^([0-9]+)x([0-9]+)([+-])([+-]?[0-9]+)([+-])([+-]?[0-9]+)} $geom -> dx dy xs xpos ys ypos
-
         set xx [lindex $args 0 ]
         set yy [lindex $args 1 ]
         if { $xpos == $xx && $ypos == $yy } {
-
-
         } else {
             set dx   [expr {  $xx - $xpos   }]
             set dy   [expr {  $yy - $ypos   }]  
             set ::___zz___(gang) [wm geom [lindex $::___zz___(vws) 0]]
-
             foreach w [lrange $::___zz___(vws) 1 end] {
                 set geom [wm geom $w]
                 regexp {^([0-9]+)x([0-9]+)([+-])([+-]?[0-9]+)([+-])([+-]?[0-9]+)} $geom -> sxx syy xs xpos ys ypos
                 set newx [expr {    $xpos + $dx   }]
                 set newy [expr {    $ypos + $dy   }]
                 set newgeom ${sxx}x${syy}+$newx+$newy
-
                 if { $::___zz___(gangcb) } {
                     wm geom $w $newgeom
                     update
@@ -1320,14 +1227,12 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
         }
     
 
-
 if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of it's own (ugly) command
 
 
 #.. proc ::___bp4g {n w key}  ;# callbacks for the entry widgets
 
     set var [$w cget -textvariable] ;# name of the variable, not the value
-#   Putz "\nargs=  w and key |$w| |$key| var= |$var| n=$n val=[set $var]"
     set max $::___zz___(max_history)
 #   ::___zz___(hnum,$n)     number 0..n for which one is next in list 0 = first
 #   ::___zz___(history,$n)  history list
@@ -1340,26 +1245,20 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         set val [set $var] ;# get the actual value
         if { $val eq "" } {
             set lastone [lindex $::___zz___(history,$n) 0 ] 
-#           Putz "empty, use last one, if any = $lastone"
             if { $lastone eq "" } {
                 return
             }
-#           Putz "empty, repeat $var"
             set val $lastone ;# use the last one
 #           vwait forever
         }
         if { $n == 1 } { ;# which entry, 1 or 2, 1= do {...} 1
-#           Putz "before eval"
-
             set ::___zz___(queued_cmd) $val ;# we can't do it from the callback of the uplevel entry widget, only after the vwait in bp+
             set queue_it 1 ;# at the end, we'll set the vwait'd var to 100 so bp+ knows it's us
 #           eval  "do \{$val\} 1"
         } else {
-
             if { [lindex $val 0] eq "g"  } {
                 after 0 $val ;# if it's our g command, don't echo it to stderr/stdout
             } else {
-
 #               after 0  "puts stderr \"result for \u3010 $val \u3011: \";puts \[$val\]" ;# make it run at global level, like the console
                 
                 puts  "result for \u3010 $val \u3011 "
@@ -1375,7 +1274,6 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         }
         $w delete 0 end ;# after doing it, we clear it out and reset hnum
         set ::___zz___(hnum,$n) -1
-#       Putz "after eval val= |$val| "
         if { $val ne  [lindex $::___zz___(history,$n) 0 ]   } {
             
             set ::___zz___(history,$n) [linsert $::___zz___(history,$n) 0 $val]
@@ -1384,7 +1282,6 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
             }
          }
 #       la ::___zz___
-#       putz "list $n = ( $::___zz___(history,$n) )"
     } elseif {  $key eq "Up"  } {
         if { [llength $::___zz___(history,$n) ] <= 0 } {
             return
@@ -1392,9 +1289,7 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         set num $::___zz___(hnum,$n)
         incr num
         if { $num < [llength $::___zz___(history,$n)]} {
-#           Putz " yes, $num < [llength $::___zz___(history,$n)]  do it"
         } else {
-#           Putz " no,  $num < [llength $::___zz___(history,$n)] do nothing"
             return
         }
         $w delete 0 end
@@ -1402,8 +1297,6 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         
         $w insert 0 $val
         incr ::___zz___(hnum,$n)
-#       Putz "new hnum = $::___zz___(hnum,$n)"
-#       Putz "list $n = ( $::___zz___(history,$n) )"
 
     } elseif { $key eq "Down"  } {
         if { [llength $::___zz___(history,$n) ] <= 0 } {
@@ -1412,9 +1305,7 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         set num $::___zz___(hnum,$n)
         incr num -1
         if { $num < [llength $::___zz___(history,$n)] && $num >= 0} {
-#           Putz " yes, $num < [llength $::___zz___(history,$n)]  and $num >= 0  do it"
         } else {
-#           Putz " no,  $num < [llength $::___zz___(history,$n)]  and $num >= 0  so do nothing"
             $w delete 0 end ;# clear it out since there's no more, the next up will restore it
             incr ::___zz___(hnum,$n) -1
             if { $::___zz___(hnum,$n)  < 0} {
@@ -1427,8 +1318,6 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         
         $w insert 0 $val
         incr ::___zz___(hnum,$n) -1
-#       Putz "new hnum = $::___zz___(hnum,$n)"
-#       Putz "list $n = ( $::___zz___(history,$n) )"
         
     } else {
         
@@ -1445,11 +1334,8 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 
     
     } elseif { $func eq "double-click" } {  ;# this is used to set the go -N value, to run till line number
-
         set selranges [.lbp_console.cframe.text tag ranges sel]
-
         set selection [.lbp_console.cframe.text get {*}$selranges]
-
         if { [string is integer $selection] } {
             tailcall $::___zz___(go+) "-[expr {(   abs($selection)   )}]"
             return
@@ -1462,7 +1348,6 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 
     
     } elseif { $func eq "tracerend" } {     ;# this is used at the end of a proc, to insert a unicode return char but leaving data window for final inspection
-
         
         incr ::___zz___(trace-level) -1
         if { $::___zz___(trace-level)  > 0} {
@@ -1481,7 +1366,6 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 #               .lbp_console.cframe.text configure -bg $::___zz___(yellow) -fg $::___zz___(yellowx)
             }
         } err_code] {
-
         }
         return
 
@@ -1495,26 +1379,19 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 #       if [catch {
 #                   .lbp_console.cframe.text configure -bg $::___zz___(white) -fg $::___zz___(black)
 #       } err_code] {
-
 #       }
         incr ::___zz___(trace-level)
-
         set prc [lindex  $args 0 0] ;# get the proc name from the trace input
         set zzz [namespace exist _$prc] ;# first time a proc is called there's no namespace to clear up
         after 300 [list catch "wm title .lbp_console $prc"]
-
         if { $zzz } {
-
 #           wait 1000
-
             if [catch {
                 namespace delete _$prc
             } err_code] {
                 puts $err_code 
             }
-
 #           wait 1000
-
         }
     
 # ------------------------------------------------------  namespace lookup  --------------------------------------------
@@ -1548,17 +1425,13 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
             if { [lindex $args 0] eq "code" } {
                 if { [info command ${window}.sw.f.frame.l0] ne "" } {
                     set value [ ${window}.sw.f.frame.l0 cget -text]
-
                 }
                 if { [info command ${window}.l0] ne "" } {
                     set value [ ${window}.l0 cget -text]
-
                 }
                 set cd "::[string range $window 1 end]::___[string range $window 2 end]"
                 if { $value eq  $cd} {
-
                 } else {
-
                     continue
                 }
             }
@@ -1649,7 +1522,6 @@ if { 00 } {
             return $result
         
     } elseif { $func eq "tearoff" } {   ;# line up all the windows
-
         set geom [wm geom .lbp_console]
         set re {^([0-9]+)x([0-9]+)([+-])([+-]?[0-9]+)([+-])([+-]?[0-9]+)}
         regexp $re $geom -> dx dy xs xpos ys ypos
@@ -1657,7 +1529,6 @@ if { 00 } {
         regexp $re $geomt -> dx dy xs xpost ys ypost
         set newx $xpos
         set newy [expr {   $ypos + 40   }]
-
         wm geom [lindex $args 1 ] ${dx}x$dy+${newx}+${newy}
 
 # ------------------------------------------------------  command usage help  -------------------------------------------
@@ -1669,8 +1540,6 @@ if { 00 } {
         puts "     smod    #            set the modula for reporting on skiping (now $::___zz___(skip_modulo))"
         puts "     clean                close all the data windows #= [llength $::___zz___(vws)]"
         puts "     grid ?y-extra? ?x-incr? reposition all data windows uses 15 / 500 for y/x"
-
-
     } elseif { $func eq "stuff" } {
         dothis-stuff
     } else {
@@ -1712,9 +1581,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         return
     }
     if {   ($::___zz___(skips)  <= 0)   ||  (  ( $::___zz___(skips)% $::___zz___(skip_modulo) ) == 0    )       } {
-
     } else {
-
         incr ::___zz___(skips) -1
         incr ::___zz___(bpnum)
         return
@@ -1724,7 +1591,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
             set ::___zz___(delayb_count) 0
         } else {
             incr ::___zz___(bpnum)
-
             return
         }
     } else {
@@ -1733,25 +1599,19 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
     set level [info frame] ;# we need to go up a level or so to get the variables, we copy them to a namespace
     incr level -1
     set frm_dict  [info frame  $level ] 
-
     set proc_name ""
     set zzz [dict exists $frm_dict proc]
     set amethod 0
     if { $zzz == 0 } {
-
         set zzz [dict exists $frm_dict method]
         if { $zzz } {
-
             set class [dict get $frm_dict class]
             set method [dict get $frm_dict method]
             set cmd [dict get $frm_dict cmd]
-
             if       { $method eq "<constructor>" } {
                 set code [info class constructor $class]
-
             } elseif { $method eq "<destructor>" } {
                 set code [info class destructor $class]
-
             } else {
                 if [catch {
                     set code [info class definition $class $method]
@@ -1762,15 +1622,12 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
             }
             
             
-
             set args [lindex $code 0]
             set body [lindex $code 1]
             set vars [uplevel 1 {info vars}]
             set myself [uplevel 1 {self}]
             set call [info class call $class $method]
-
             set the_method "method $method \{$args\} \{ $body \}"
-
             if { 0 } {
                 foreach var $vars {
                     if [catch {
@@ -1791,16 +1648,13 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         
 # ------------------------------------------------------  get proc_name and ns if a proc, if a method, we get the same info above ----------------------------------
     if { $amethod } {
-
 #       return
         set proc_name $method
         set ns _$proc_name
     } else {
         set proc_name [lindex [dict get $frm_dict proc] 0]
-    #   puts "proc_name= |$proc_name| frm_dict= |$frm_dict| level= |$level| " ; update
         set ns [string map {{::} {_}} $proc_name]
     }       
-
 # ------------------------------------------------------  setup to display instrumentation but one last escape for no local breakpoints here, but incr the count ---
     set show_instr $::___zz___(showinstr)
     if { [info exist ::___zz___(cb3,.$ns)]  && $::___zz___(cb3,.$ns) && $::___zz___(delaya) <= 0} {
@@ -1813,13 +1667,11 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 # ------------------------------------------------------  get the list of user variables end ----------------------------
         
         
-
         
 # need some functions here, but don't want to polute the command name space any more
         
 # ------------------------------------------------------- get_proc_code $proc_name --------------------------------------
     if { $amethod } {
-
         set proc_def $the_method
         set proc_name $method
 #       return
@@ -1878,9 +1730,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                     }
                 }
                 if { ! $show_instr } {
-
                     set zzz [regsub -nocase -linestop -lineanchor -all {^.*;# instrument-show-begin(.*);# instrument-show-end$} $line {\1 (removed lbp+)} line]
-
                     if { $zzz <= 0 || 1} { ;# let's do this all the time, shouldn't hurt, but I'll leave in the if test as a reminder
                         # didn't match, so line comes out the same, so now just test for our instrumentation to hide, if did match, we extract original comment only
                         set zzz 0
@@ -1888,7 +1738,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                     }
                     
                     
-
                 }
                 append out "${cur}[format %4d [incr num]]\t$line\n" 
             }
@@ -1898,9 +1747,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
     }} $proc_def $search_id $comment $show_instr]
     
 #   if { $amethod } {
-
-
-
 #       return
 #   }
 # ------------------------------------------------------  get the list in the namespace to  compare to vars list      ------------------------
@@ -1911,33 +1757,31 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         set winex 1
         set allx [info var ${ns}::*]
         set allx2 "::${ns}::__${ns}"
-
-
         set catx {}
         foreach item $allx {
             if { $item ne $allx2 } {
                 lappend catx [namespace tail $item]
-                set ::___zz___(temp,0) [set $item]
+                if [catch {
+                    set ::___zz___(temp,0) [set $item]
+                } err_code] {
+                    set varsdiff 1  
+                    break
+                }
                 set lvar [namespace tail $item]
                 if [catch {
                     set cmd "expr {\$::___zz___(temp,0)  == \$\{${lvar}\} } " ;# will get an error if the variable is an array - could optimise here, but not yet, we just let it do full update to get the indices correct   
-
                     set zzz [uplevel 1 $cmd  ]
-                    if { $zzz == 0 } {
+                    if { $zzz == 0} {
                         set cmd "set $lvar"
                         set zzz1 [uplevel 1 $cmd  ] ;# get the new value for the variable, try to set the var in the namespace so it updates
-
                         set $item $zzz1 ;# just update item to new value
                         set zzz 1       ;# and reset this, later, we might find we have a new variable, and the var lists won't match, so we then do a full update, but not yet needed
                     }
                 } err_code err_code2] {
-
                     set zzz 0 ;#if we get an error, then just consider it to be different, so we call the full update 
                 }
 #               set cmd "set $lvar"
 #               set zzz1 [uplevel 1 $cmd  ]
-
-
                 if { $zzz == 0} {
                     set varsdiff 1  
                     break ;# don't need to check further, they are different, we need to do a full update
@@ -1946,28 +1790,21 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         }
         set catx [lsort $catx] ;# the final result, but only if winex is 1
     } else {
-
     }
-
     
 # ------------------------------------------------------  put in first variable the proc, into the namespace for this proc -------------------
     
-
     
-
     
     set pdef "variable __$ns \{\n$proc_def \n \}\n" ;# not a problem here with quoting, since it's a valid proc we got back, so quoting should be correct
     
-
     set ncmd ""
     set ncmd $pdef
-
     set nvar -1
 # ------------------------------------------------------  put into the namespace for this proc each variable from $vars  the locals ----------
     if { $varsdiff || 1} {
         foreach var $vars {
             incr nvar
-
             set cmd "array exist $var" ;# command to run in caller stack frame
             set arr [uplevel 1 $cmd]   ;# and now run it there
             if [catch {
@@ -1975,13 +1812,11 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                 set aval [uplevel 1 $cmd]
                 set ok 1
             } err_code] {
-
                 set ok 0
             }
             if { ! $ok } {
                 continue
             }
-
             
 #           set f1 "\{"
 #           set f2 "\}"
@@ -1995,53 +1830,38 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                 append  ncmd "variable $var \$::___zz___(temp,$nvar) \n"
             }
         }
-
         
-
-
     }
 # ------------------------------------------------------  now use $cmd in the namespace $ns to create/assign values to namespace   -----------
     
     if [catch {
-
             namespace eval $ns $ncmd
     } err_code] {
-
-
     }
     
 # ------------------------------------------------------  compare the 2 lists, from namespace and info vars, result is $equal      -----------
-    
     set equal 0 ;# will be 0 if the window doesn't exist, or the variables are not the same
     if { $winex } {
         set catx [lsort $catx]
         set varx [lsort $vars]
-
         if { [llength $catx] == [llength $varx] } {
             if { [string equal $catx $varx] } {
                 set equal 1
             }
         }
     } else {
-
     }
-
 #   wait 1000
 #   vwait forever
 
 # ------------------------------------------- * --------------------- call to get the window updated, by CALLING VW + from here --------------
-
     if { (! $equal) || 0} {
-
-
 #       vwait forever
                                 $::___zz___(vw+) "${ns}::" .$ns 
     } else {
         if { $varsdiff } {
-
                                     update
         } else {
-
 #           update  
             incr ::___zz___(updatesomeN) -1
             if { $::___zz___(updatesomeN) <= 0} { ;# v {::___zz___(updatesomeN) ::___zz___(updatesome)} update_globals
@@ -2050,23 +1870,18 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
             }
         }
     }
-
 # ------------------------------------------------------------------- call to get the window updated, by CALLING VW + from here end-----------
-
-
 
 #   vwait ::forever
 
     
     if { [info exist ::___zz___(cb2,.$ns)] && $::___zz___(cb2,.$ns) && [info exist ::___zz___(cb3,.$ns)] && !$::___zz___(cb3,.$ns) } {
 
-
 #   show_simple $proc_def   $::___zz___(lbp+,line)
     
 # ------------------------------------------- * --------  BUILD the Code Window if is does not exist  ----------------------------------------
 
     if { [info command .lbp_console] eq ""} {
-
         set ::___zz___(lbp-lock) 0
         set ::___zz___(lbp-locka) 0
         set ::___zz___(lbp-lockb) 0
@@ -2147,7 +1962,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 
         spinbox     .lbp_console.uframe.sbox    -from 0             -to 999     -increment 1  -textvariable ::___zz___(delaya) -width 3 -font {courier 14}
         bind        .lbp_console.uframe.sbox  <MouseWheel> {apply [list {spinner value} { 
-                                                            #   puts "spinnera= |$spinner|   value= |$value| "
                                                                 if { $value > 0 } {
                                                                     $spinner invoke buttonup
                                                                 } else {
@@ -2167,7 +1981,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 
         spinbox     .lbp_console.uframe.sbox100     -from 0             -to 999     -increment 100  -textvariable ::___zz___(delaya) -width 3 -font {courier 14}
         bind        .lbp_console.uframe.sbox100  <MouseWheel> {apply [list {spinner value} { 
-                                                            #   puts "spinnera= |$spinner|   value= |$value| "
                                                                 if { $value > 0 } {
                                                                     $spinner invoke buttonup
                                                                 } else {
@@ -2185,7 +1998,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
  
         spinbox     .lbp_console.uframe.sbox10  -from 0             -to 999     -increment 10  -textvariable ::___zz___(delaya) -width 3 -font {courier 14}
         bind        .lbp_console.uframe.sbox10  <MouseWheel> {apply [list {spinner value} { 
-                                                            #   puts "spinnera= |$spinner|   value= |$value| "
                                                                 if { $value > 0 } {
                                                                     $spinner invoke buttonup
                                                                 } else {
@@ -2209,7 +2021,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
             
         spinbox     .lbp_console.xframe.sbox10  -from 0             -to 999     -increment 10  -textvariable ::___zz___(delayb) -width 3 -font {courier 14}
         bind        .lbp_console.xframe.sbox10  <MouseWheel> {apply [list {spinner value} { 
-                                                            #   puts "spinnera= |$spinner|   value= |$value| "
                                                                 if { $value > 0 } {
                                                                     $spinner invoke buttonup
                                                                 } else {
@@ -2228,7 +2039,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
             
         spinbox     .lbp_console.xframe.sbox    -from 1             -to 999     -increment 1  -textvariable ::___zz___(delayb) -width 3 -font {courier 14}
         bind        .lbp_console.xframe.sbox  <MouseWheel> {apply [list {spinner value} { 
-                                                            #   puts "spinnera= |$spinner|   value= |$value| "
                                                                 if { $value > 0 } {
                                                                     $spinner invoke buttonup
                                                                 } else {
@@ -2251,7 +2061,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         
         spinbox     .lbp_console.xframe.sboxl   -from 10            -to 100     -increment 1  -textvariable ::___zz___(proc_wid) -width 3 -font {courier 14} -command [list $::___zz___(util+) showlines %W %s %d]
         bind        .lbp_console.xframe.sboxl  <MouseWheel> {apply [list {spinner value} { 
-                                                            #   puts "spinnera= |$spinner|   value= |$value| "
                                                                 if { $value > 0 } {
                                                                     $spinner invoke buttonup
                                                                 } else {
@@ -2313,10 +2122,8 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
             wm geom .lbp_console 1061x804+-1+185
         }
         
-
         
         if { $::___zz___(tooltips) != 0 } {
-
             if [catch {
                 package require tooltip
                 set delay 1000
@@ -2325,9 +2132,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                 } elseif {  $::___zz___(tooltips) == 0 } {
                     set delay 0
                 }
-
                 if { $delay > 0 } {
-
                     tooltip::tooltip delay $delay
                     tooltip::tooltip  .lbp_console.xframe.labell "show N lines above and below\ncurrent line"
                     tooltip::tooltip  .lbp_console.xframe.lab3a  "Clear the command entry, where you can\nenter a command. Runs at global level, however\nso be careful"
@@ -2375,7 +2180,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
             set to   [expr {(   $line + $wid   )}]
             set wid2 [expr {(   $wid + $wid   )}]
             
-
             if { $::___zz___(lbp-lock) } {
                 set from $::___zz___(lbp-locka)
                 set to   $::___zz___(lbp-lockb)
@@ -2388,10 +2192,8 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                 set to $nlines
             } else {
                 if { $from <= 0 } {
-
                     set to  [expr {(   $to - $from  +1 )}]
                     set from 1
-
                     
                 } elseif {$to > $nlines} {
                     incr from  -[expr {(   $to - $nlines   )}] 
@@ -2399,33 +2201,28 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                 }   
             }
 
-
             set num 0
             foreach linetxt $lines {
                 incr num
                 if { $num < $from || $num > $to } {
                     continue
                 }
-
                     .lbp_console.cframe.text insert end-1c "$linetxt\n"
                     .lbp_console.cframe.text see end-1c
-                if { $::___zz___(delay) > 0 } {
+#               if { $::___zz___(delay) > 0 } {
 #                   wait $::___zz___(delay)
-                }
+#               }
 
             }
             incr line
             if { $line ne "" } {
                 if { $line < $from  } {
-                    .lbp_console.cframe.text replace 1.0 1.1 "\u2191"   ;# offscreen low
-
+                    .lbp_console.cframe.text replace 1.0 1.1 "\u2191"   ;# offscreen low - up arrow
                 }
                 if {  $line > $to } {
-                    .lbp_console.cframe.text replace end-1l end-1l+1c "\n\u2193"
-
+                    .lbp_console.cframe.text replace end-1l end-1l+1c "\n\u2193" ;# down arrow
                 }
             } else {
-
                 
             }
         }
@@ -2442,7 +2239,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 
 
 
-
 # -------------------------------------------------------------------- do low level breakpoint  ----------------------------------------------
 if { $tailed } {
     $::___zz___(bp+) "$ns $colon$comment" 0 1 1 ;# and finally, we call the regular breakpoint if breakpoints not disabled
@@ -2455,30 +2251,24 @@ if { $tailed } {
 
     set ncmd ""
 
-
     
 # ------------------------------------------------------ handle the variables  going back after we continue from the breakpoint --------------
 
     foreach var $vars {
-
         set cmd "array exist $var" ;# command to run in caller stack frame
         set arr [uplevel 1 $cmd]   ;# and now run it there
         if [catch {
             set cmd "if \{ ! \[ array exist $var \] \} \{ set $var \} else  \{ lsort \[ array names $var\]  \}     "
-
             set aval [uplevel 1 $cmd]
             set ok 1
         } err_code] {
-
             set ok 0
         }
         if { ! $ok } {
             continue
         }
-
         set nsvar "::${ns}::${var}" ;# the variable our namespace, so we can push it back to the locals
         set comment_it_out ""
-
         if { $var eq "args" } {
 #           set comment_it_out "#" ;# don't think it's a good idea to have the user change args, maybe we will change our minds
         }
@@ -2489,7 +2279,6 @@ if { $tailed } {
             append  ncmd "   ${comment_it_out}set $var \$\{${nsvar}\}  \n"
         }
     }
-
     uplevel 1 $ncmd
 #   namespace eval $ns $ncmd ;# set the variables in the user's local
 #   $::___zz___(vw+) "${ns}::" .$ns
@@ -2515,9 +2304,7 @@ proc instrument+ {procedure args} {
     set nw [lsearch -exact $args -nowarn]
     if { $nw > -1 } {
         set no_warn 1
-
         set args [lreplace $args $nw $nw]
-
     }
 # -------------------------------------------------------- instrument class methods, by faking it, quite a hack, but hey...
     if { $procedure eq "-class" } { ;# instr -class class method
@@ -2534,7 +2321,6 @@ proc instrument+ {procedure args} {
         if { $themethod eq "*" } {
             set all {}
             foreach item [info class methods $theclass -private] {
-
                 if { $no_warn } {
                     append all [instrument+ -class $theclass $item -nowarn] 
                 } else {
@@ -2553,20 +2339,19 @@ proc instrument+ {procedure args} {
         set def [info class definition $theclass $themethod]
         set arglist [lindex $def 0]
         set mcode [lindex $def 1]
-
         set temp "proc ${theclass}__z__$themethod \{$arglist\} \{ $mcode\}\n" ;# construct a fake proc
         set len [string length "proc ${theclass}__z__$themethod"]
-
         eval $temp ;# now define the new fake proc, so we can instrument it normally
         set result [instrument+ ${theclass}__z__$themethod] ;# instrument this fake proc
-
         
         set lines0 [split $result \n]
         set lines [lrange $lines0 1 end-3]
-        set line1 [string range [lindex $lines0 0] $len end] ;# remove the 2 traces at the end
-        set traces [lrange $lines0 end-2 end] ;# eventually we need to see if we can trace a method, this is just for the color change on method leaving
-        set newline1 "oo::define ${theclass} $lbracket method $themethod $line1 \n" ;# rebuild the method def
+        set line1 [string range [lindex $lines0 0] $len end] ;# remove the 2 traces at the end - note, these traces are what clear the namespace on each entry, so we have a fresh one with no locals - caused the method var bug by not having them
 
+        set line1 [regsub {;lbp\+} $line1 "catch {$::___zz___(util+) init_method  _$themethod \[info vars\]} ;lbp+"]
+
+        set traces [lrange $lines0 end-2 end] ;# eventually we need to see if we can trace a method, this is just for the color change on method leaving - but note comment above
+        set newline1 "oo::define ${theclass} $lbracket method $themethod $line1 \n" ;# rebuild the method def
         set result $newline1 ;# start with a new line 1, which is the oo::define and method declaration
         foreach item [lmap xxx $lines {string cat $xxx \n}] {
             append result $item 
@@ -2574,7 +2359,6 @@ proc instrument+ {procedure args} {
         append result "\n$rbracket\n"
         rename ${theclass}__z__$themethod {} ;# get rid of the temporary proc we built so we could instrument it
         append result "oo::define $theclass export $themethod\n"
-
         return $result
     }
 
@@ -2583,20 +2367,16 @@ proc instrument+ {procedure args} {
     set enable 1 ;# enable instrumenting
 #   set pcode [getproc $procedure]
     set norb 0
-
     if { [lsearch "-norb" $args] >= 0 } {  
         set norb 1
-
     }
     if { [lsearch "-revert" $args] >= 0 } {  
         if { [info exists  ::___zz___(original,$procedure)] } {
             eval $::___zz___(original,$procedure) ;# this automatically removes the trace, so we need not do it ourselves
             unset ::___zz___(original,$procedure) ;# remove this so it will fail if user tries it twice
 #           set zzz [trace info execution $procedure]
-
 #           trace remove execution $procedure enter [list $::___zz___(util+) tracer]
 #           set zzz [trace info execution $procedure]
-
         } else {
             error "cannot find an original to revert to for $procedure - was it already reverted?"
             return
@@ -2635,38 +2415,27 @@ proc instrument+ {procedure args} {
     set ::___zz___(original,$procedure) $pcode
 
 
-
-
     set lines [split [string trimright $pcode \n] \n]
     set nlines [llength $lines]
     set ln 0
     set idn 1000000000
     set out ""
     
-
-
     set scrub 1
     set lrev [lreverse [lrange $lines 0 end-1 ] ]
-
     
     foreach line $lrev {
-
         if       { [string trim $line] eq "" } {
-
             incr scrub
             continue
         } elseif { [string index [string trim $line] 0]  eq "#"  } {
-
             incr scrub
             continue
         } else {
-
             break
         }
     }
-
     set scrub  [expr {   $nlines - $scrub  - 1 }]
-
 
 # at this point, scrub is the number of lines at the end we won't instrument, since we can't have anything after the final
 # statement in the proc, since that's the proc's return value iff there's no explicit return, so we can't instrument that
@@ -2674,11 +2443,9 @@ proc instrument+ {procedure args} {
 # note this is not perfect, there could be an if statement with a result, best to always use explicit returns
 
     set return_seen 0   
-
     set skipit 0
     foreach line $lines {
         incr ln
-
         if { $ln > $scrub } {
             set enable 0
         }
@@ -2696,25 +2463,19 @@ proc instrument+ {procedure args} {
         set ok [info complete $tline] ;# not sure exactly how this works, but if its not complete, we may not want to instrument it
         if { $ok } {
             if { [regexp {^.*\{[ \t]*return[ \t]*.*\}$} $line ]} { ;# looking for a one line proc with a return
-
                 set return_seen 1   
             }
         } else { ;# not a complete line, call utility to get the number of lines forward till we complete the command
-
             if { [regexp {^[ \t]*(set|puts)[ \t]*.*$} $line ] || 1} { ;# looking for a set or puts statement that is incomplete
-
                 set skipitl [$::___zz___(util+) completeit $nlines $ln $lines]
                 set skipit [lindex $skipitl 0 ]
                 set cmd [lindex $skipitl 1 ]
-
 #               update
                 set cmdname [string trimleft $cmd]
                 set zzz [regexp {^(\w+)[ \t]*} $cmdname -> cmdname]
                 
                 incr skipit -2  
-
                 if { $cmdname in {if while for foreach while proc} || $zzz == 0} {
-
                     set skipit 0
                 }
             }
@@ -2732,7 +2493,6 @@ proc instrument+ {procedure args} {
             } elseif { [string range $tline 0 8] eq  "#disable+" } {
                 set enable 0
             }
-
 #           set ok 3 
         } elseif {$tline eq ""} { ;# and don't want it for blank lines either 
 #           set ok 4
@@ -2757,14 +2517,12 @@ proc instrument+ {procedure args} {
             if { $cmd eq "switch" } {
 #               set norb 1 ;# if there's a switch statement seen, we apply the -norb option for here on
             }
-
             set rb $rbracket
             if { $norb } {
                 set rb "xxxxxxxxxxxxxxxxxxxxxxxx"
             }
             set keys [list if foreach proc for while  $rb ]
             if {$cmd  in $keys } {
-
                 if { [string index $tline end] eq $lbracket} {
                     set ok 2 ;# some sort of control command ending in a open brace
                 }
@@ -2785,15 +2543,11 @@ proc instrument+ {procedure args} {
         if { $ln == $nlines } {
             set instrument ""
         }
-
-
         if { $tline eq $rbracket && $norb} {
             set instrument ""
         } else {
 #           set zzz [regsub  "([ \t]);##([ \t])" line {\1 $} ?varName?]
             set zzz [regsub -nocase -linestop -lineanchor {([ \t])(;#+)([ \t])(?!.*")} $line "\\1$instrument\\3\\2 " result]
-
-
             if { $zzz == 1 && $enable} {
                 set line $result
                 set instrument ""
@@ -2803,11 +2557,9 @@ proc instrument+ {procedure args} {
             }
         }
         if { $enable } {
-
             if { $enable_seen } {
                 append out "$instrument ; $line \n"
             } else {
-
                 set trline [string trimleft $line]
                 if { [string index $trline 0] eq "#"} {
                     append out "$instrument ;# instrument-show-begin $line ;# instrument-show-end\n"
@@ -2817,11 +2569,9 @@ proc instrument+ {procedure args} {
             }
 #           append out "$line $instrument\n"
         } else {
-
             append out "$line\n"    
         }
     }
-
     append out "trace add execution $procedure enter \{$::___zz___(util+) tracer\}\n"
     append out "trace add execution $procedure leave \{$::___zz___(util+) tracerend\}\n"
     if { !$return_seen && $no_warn == 0} {
@@ -2845,18 +2595,15 @@ namespace eval vwdebug {
     set cash(0) "inited"
     proc do_destroy {kind args} {
         variable cash
-
         if { $::___zz___(cache) } {
         # if label, clear
         # if entry, clear, remove textvariable unset readonly
             set w [lindex $args 0 ]
             if { $kind eq "Label" } {
-
-                $w config -text "\u220E"
+                $w config -text "\u220E" ;# black square
             } else { ;# an entry
                 set var [$w cget -textvariable]
                 $w config -textvariable {} -state normal
-
                 $w delete 0 end
 #               $w insert 0 "\u2400"    
             }
@@ -2869,11 +2616,9 @@ namespace eval vwdebug {
     proc do_label {m args} {
         variable cash
         if { $::___zz___(cache) } {
-
             if [catch {
                 label {*}$args  ;# if it already exists, just configure after error
             } err_code] {
-
                 lassign $args name wid widv txt txtv
                 $name config $wid $widv $txt $txtv
             }
@@ -2888,12 +2633,10 @@ namespace eval vwdebug {
     proc do_entry {m args} {
         variable cash
         if { $::___zz___(cache) } {
-
             if [catch {
                 entry {*}$args
                 return
             } err_code] {
-
                 lassign $args name wid widv txt txtv
                 $name config $wid $widv $txt $txtv
             }
@@ -2905,7 +2648,6 @@ namespace eval vwdebug {
         variable cash
         if { $::___zz___(cache) } {
             lassign $args w b
-
             tailcall bind {*}$args
         } else {
             tailcall bind {*}$args
@@ -2914,7 +2656,6 @@ namespace eval vwdebug {
     proc do_grid {args} {
         variable cash
         if { $::___zz___(cache) } {
-
             tailcall grid {*}$args
         } else {
             tailcall grid {*}$args
