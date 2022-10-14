@@ -1,19 +1,20 @@
 # - --------------------------------
 # C O N N F I G U R A T I O N begin
 # - --------------------------------
-
-set ::___zz___(proc_wid) 15         ;# the number of lines to show on either side of a breakpoint line
+set ::___zz___(proc_wid) 5          ;# the min number of lines to show BELOW (just changed) a breakpoint line, adjust with spinbox
 set ::___zz___(auto_list_default) 1 ;# this sets the auto list checkbox to this value at first creation of checkbox
 set ::___zz___(bp_messages_default) 1 ;# this sets the no bp messages checkbox to this value at first creation of checkbox
 set ::___zz___(console_hack) 0      ;# if 1, installs a console hack to allow an empty <cr> line on console, repeats last command (handy for go+)
 set ::___zz___(tooltips) 1000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
-set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file
+set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file if no tooltips package available, e.g. on linux w/o tcllib
 set ::___zz___(use_ttk) 0           ;# if 1, the windows use the themed ttk
 set ::___zz___(max_size) 3000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
 set ::___zz___(max_history) 50      ;# the maximum number of commands saved in the 2 command histories (command and uplevel)
 set ::___zz___(skip_modulo) 100     ;# when using a large skip count on go+ this is the number of steps between reporting remaining messages
 set ::___zz___(arrow) "\u27F6"      ;# Unicode arrow, can be 2 char positions also, can cause a wobble of the line number, if you like that
 set ::___zz___(tabsize) 4           ;# code window tabsize
+set ::___zz___(fontsize) 12         ;# data window font size (rest of window only works correctly with a value of 12 - for now)
+set ::___zz___(minupdate) 1         ;# experimental
 
 # choose one set or the other of the below, must be defined to something however
 #set ::___zz___(black) black        ;# the code window colors, black is the foreground, white the background, yellow backgound when proc done
@@ -51,6 +52,8 @@ set ::___zz___(delay) 0         ;# debugging delay times to slow down what's goi
 set ::___zz___(goto) -1         ;# debugging goto line number
 set ::___zz___(go-window) {}    ;# debugging goto window/proc name
 set ::___zz___(lbp+,line) -1    ;# current line in a code window - 1
+set ::___zz___(lbp+,pline) -1   ;# previous line in a code window - 1
+set ::___zz___(lbp+,pproc) {}    ;# previous line proc name
 set ::___zz___(tail) 0          ;# used for a tailcall to update lines w/o continuing
 set ::___zz___(bpnum) 0
 set ::___zz___(delaya) 0        ;# spinbox for delaying stepping animation
@@ -61,8 +64,6 @@ set ::___zz___(trace-level) 0   ;# keep track of enter/leave so if we are in a l
 set ::___zz___(queued_cmd) {}   ;# so we can do an uplevel
 set ::___zz___(lbp-ontop)  0    ;# the code window on top checkbox
 set ::___zz___(lbp-lock) {}     ;# used to lock the code window in place
-set ::___zz___(lbp-locka) {}
-set ::___zz___(lbp-lockb) {}
 set ::___zz___(updatesome)  10  ;# update at least once this many steps
 set ::___zz___(updatesomeN)  0  ;# counter to use with updatesome
 set ::___zz___(gangcb)       0  ;# checkbutton for gang moving of data windows, first window moves all together
@@ -77,7 +78,19 @@ set ::___zz___(lbp+) "lbp+"     ;# the name of the lbp+ proc
 set ::___zz___(util+) "util+"   ;# the name of the font adjuster, didn't want to use apply, would make the callback look too ugly
 
 
+
 if { 0 } { ;# only for debugging
+proc xputs {args} {
+    
+}
+proc zwait {args} {
+    lassign $args dly
+    if { $::___zz___(delay) > 0 } {
+        wait $::___zz___(delay)
+        wait $dly
+    }
+    
+}
 proc wait { ms } {
     set uniq [incr ::__sleep__tmp__counter]
     set ::__sleep__tmp__$uniq 0
@@ -251,6 +264,14 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
     if { $w eq "." } {
         set w ".vw"
     }
+    set fsize $::___zz___(fontsize)
+    array set fc { 14 .9 13  .95 12 1.0        11 1.1      10 1.2      9 1.3      8 1.4      } ;# pairs font size vs. width adjustment
+    if { [info exist fc($fsize) ]} { ;# if fsize is smaller than 12, we need to adjust width
+        set wid  [expr {    int(  $wid * $fc($fsize) )   }]
+    }
+    
+    
+    
     if { [string index $w 0] ne "." } {
         set w .$w ;# allow user to leave off the leading .
     }
@@ -354,15 +375,18 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
     if { ! $exists } {  
 # --------------------------------------*------- build DATA window  ----------------------------------------------------
         frame $w.f1 -relief groove  -padx 5
-        frame $w.f2 -relief groove -background green
+        frame $w.f2 -relief groove ;# -background green
         grid $w.f1 $w.f2
         if { $::___zz___(use_ttk) } {
             set ttk "ttk::"
+            set borderwidth {}    ;# wish that ttk would ignore options from tk that are not supported, wrote a TIP for that
         } else {
             set ttk ""
+            set borderwidth {-borderwidth 1 -pady 0}
         }
+        
 #       ${ttk}button      $w.f1.b1   -text "Refresh"    -command [list $me - $w 0] ;# refresh the arrays, variables no problem
-        ${ttk}button      $w.f1.b1   -text "Refresh"                               ;# refresh the arrays, variables no problem
+        ${ttk}button      $w.f1.b1   -text "Refresh"    {*}$borderwidth                          ;# refresh the arrays, variables no problem
 #       ${ttk}button      $w.f1.b1   -text "Refresh"    -command [list $me $pat $w $wid] ;# refresh the arrays by re-issue vw command new maybe
         set ww .[lindex [split $w .] 1]
         if { $pat ne "**" } {
@@ -374,7 +398,7 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         bind  $w.f1.b1 <Alt-ButtonRelease-1>    [list puts "bind: $cmd"]    ;# alt output the binding only
         bind  $w.f1.b1 <Shift-ButtonRelease-1>  "$me - \{$w\} 0"            ;# shift click on refresh will only update arrays
         
-        ${ttk}button      $w.f1.b2   -text "Go"         -command [list $go -1 $w] ;# go from breakpoint, remember the current window for refresh
+        ${ttk}button      $w.f1.b2   -text "Go"         -command [list $go -1 $w]  {*}$borderwidth ;# go from breakpoint, remember the current window for refresh
         
         if { $reincarnated == 0 } {
             if { ! [info exist ::___zz___(cb1)] } {
@@ -413,13 +437,14 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         ${ttk}checkbutton $w.f2.cb3 -text "No local BPs "       -variable ::___zz___(cb3,$ww)
         ${ttk}checkbutton $w.f2.cb4 -text "No BP messages    "  -variable ::___zz___(cb4,$ww)
         ${ttk}checkbutton $w.f2.cb5 -text "spare"               -variable ::___zz___(cb5,$ww)
+        ${ttk}button      $w.f2.bb6 -text "Exit"                -command exit  {*}$borderwidth
         if { ! [info exist ::___zz___(tooltipspr)] } {
             set ::___zz___(tooltipspr) 1 ;# so we don't do this again
             if [catch {
                 package require tooltip
             } err_code] {
                 set ::___zz___(tooltips) 0
-                puts stderr "Package tooltips not found, will continue..."
+                puts stderr "Package tooltips not found, will continue... Can use builtin see config at top"
                 namespace eval tooltip {
                     proc tooltip {args} {}
                 }
@@ -429,8 +454,9 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         set topguy [winfo toplevel $w]
         set tcmd "wm attributes {$topguy} -topmost \$::___zz___(cb6,$ww)"
         ${ttk}checkbutton $w.f2.cb6 -text "On Top       " -variable ::___zz___(cb6,$ww) -command $tcmd 
+        set ::___zz___(cb7,$ww) 0
         ${ttk}checkbutton $w.f2.cb7 -text "Manual Geom" -variable ::___zz___(cb7,$ww) -command $tcmd 
-        
+        tooltip::tooltip $w.f1.b1  "Refreshes with new variable pattern\nalso used to update array indices\nalt-left-click for initial cmd"
         tooltip::tooltip $w.f2.cb1 "Turn off all breakpoints, this applies to all code\nwindows, this checkbox is shared by all code windows"
         tooltip::tooltip $w.f2.cb2 "Automatic code listing updates"
         tooltip::tooltip $w.f2.cb3 "Turn off all LOCAL breakpoints, this applies to the \nprocedure/method in the title bar"
@@ -445,7 +471,8 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 #           wm attributes . -topmost $::stayontop
 #       }
 
-        grid $w.f2.cb1  $w.f2.cb2  $w.f2.cb3 $w.f2.cb4  $w.f2.cb5   $w.f2.cb7  $w.f2.cb6 ;# options in column 2
+        grid $w.f2.bb6 $w.f2.cb1  $w.f2.cb2  $w.f2.cb3 $w.f2.cb4  $w.f2.cb7  $w.f2.cb6  ;# options in column 2
+        grid $w.f2.bb6 -padx 20 ;# extra space between exit on left (so is there with small window)
         grid $w.f1.b2 $w.f1.b1
 # ---------------------------------------------- reuse window partially ------------------------------------------------
 
@@ -492,7 +519,7 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
     }
 # ---------------------------------------------- process argsn a list of variable names --------------------------------
     
-    set size {{consolas} 12}
+    set size "{consolas} $::___zz___(fontsize)"
 #   set size {TkFixedFont 12}
 #   font
     set maxwid 16 ;# compute max variable length so groove fills, but set minimum first
@@ -721,10 +748,17 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 # ---------------------------------------------- bwidgets try to compute new size of window ----------------------------
     } else {
 #       resize the toplevel window so to not need scrollbars if possible, but no bigger than these maxes
-        set height  [expr {(    min(  65 + ($n * 27) , 950 )                    )}] ;# no more than 950
-        set width   [expr {(    min( int( ($wid + $maxwid) * 11.4) +12 , 1600)    )}] ;# no more than 1600
+        set fheight [font metrics "consolas $::___zz___(fontsize)" -linespace] 
+        set fwidth [font measure  "consolas $::___zz___(fontsize)" "X"]
+        
+        set height1     [expr {(    min(  int( 65 + ($n * 1.2 * $fheight) ) , 950 )                    )}] ;# no more than 950
+        set width1      [expr {(    min( int( ($wid + $maxwid) * 1.03 * $fwidth ) +12 , 1600)    )}] ;# no more than 1600
+        
+#       set height  [expr {(    min(  65 + ($n * 27) , 950 )                    )}] ;# no more than 950
+#       set width   [expr {(    min( int( ($wid + $maxwid) * 11.4) +12 , 1600)    )}] ;# no more than 1600
         if { $reincarnated } {
-            set newgeom ${width}x$height$oldgeom
+#           set newgeom ${width}x$height$oldgeom
+            set newgeom ${width1}x$height1$oldgeom
         } else {
             if [catch {
                 set nws [llength $::___zz___(vws) ]
@@ -734,7 +768,7 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             }
             set nws [expr {(    $nws % 10   )}] ;# after this many new windows, we start placing them at the top again
             set ycord [expr {(   -6 + ($nws * 100)   )}]
-            set newgeom ${width}x$height+-6+$ycord
+            set newgeom ${width1}x$height1+-6+$ycord
         }
         set top [split $w .]
         set wtop .[lindex $top 1]
@@ -1128,6 +1162,33 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
         return
 # ------------------------------------------------------ utility grid --------------------------------------------------
 
+    } elseif { $func eq "gridck" } {    ;# turn on/off gang move
+        if { $::___zz___(gangcb) } {
+            set newws {}
+            foreach w $::___zz___(vws) {
+                if { [info command $w] eq "" } {
+                    continue
+                }
+                lappend newws $w
+                bind $w <Configure> {} ;# unbind if it was bound
+            }
+            set ::___zz___(vws) $newws
+            if { [llength $newws] > 0 } {
+                set w [lindex $newws 0 ]
+                set ::___zz___(gang) [wm geom $w] ;# save his current position and bind him
+                bind $w <Configure> [list $::___zz___(util+) gang-move %x %y]
+                puts stderr "Grid leader is now: $w"
+            } else {
+                puts stderr "No windows to grid together"
+                set ::___zz___(gangcb) 0
+            }
+        } else {
+            
+        }
+        return
+        
+    
+    
     } elseif { $func eq "grid" } {  ;# line up all the windows
 
         set x -9
@@ -1136,7 +1197,7 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
         set ws $::___zz___(vws)
         set index 0
         set wn [llength $ws]
-        set extra 15
+        set extra 25
         set xincr 700
         if { $::tcl_platform(os) eq "Linux" } {
             set extra 50
@@ -1178,17 +1239,27 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
             set w [lindex $::___zz___(vws) 0] ;# front of list is the new guy to lead
             set ::___zz___(gang) [wm geom $w] ;# save his current position and bind him
             bind $w <Configure> [list $::___zz___(util+) gang-move %x %y]
-            set ::___zz___(gangcb) 1
+#           set ::___zz___(gangcb) 1
+            puts stderr "Grid locking is off, use \"move group\" to turn on"
+        } else {
+            puts stderr "No windows to arrange"
+            
         }
-        
+        set ::___zz___(gangcb) 0
         
         return
 # ------------------------------------------------------ gang move callback   ------------------------------------------        
     } elseif { $func eq "gang-move" } {     ;# display all frames verbose
         set geom $::___zz___(gang)
         regexp {^([0-9]+)x([0-9]+)([+-])([+-]?[0-9]+)([+-])([+-]?[0-9]+)} $geom -> dx dy xs xpos ys ypos
-        set xx [lindex $args 0 ]
-        set yy [lindex $args 1 ]
+        if { [llength $::___zz___(vws)] > 0 } {
+#           update
+            set geomnow  [wm geom [lindex $::___zz___(vws) 0]] ;# get the leader's current position
+            regexp {^([0-9]+)x([0-9]+)([+-])([+-]?[0-9]+)([+-])([+-]?[0-9]+)} $geomnow -> dx dy xs xx ys yy ;# only need the xx and yy  
+        } else {
+            puts stderr "should never happen, no windows in vws"
+            return
+        }
         if { $xpos == $xx && $ypos == $yy } {
         } else {
             set dx   [expr {  $xx - $xpos   }]
@@ -1202,6 +1273,7 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
                 set newgeom ${sxx}x${syy}+$newx+$newy
                 if { $::___zz___(gangcb) } {
                     wm geom $w $newgeom
+#                   wait 1000
                     update
                 }
             }
@@ -1358,7 +1430,8 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 
     
     } elseif { $func eq "tracerend" } {     ;# this is used at the end of a proc, to insert a unicode return char but leaving data window for final inspection
-        
+        set prc [lindex [vwdebug::get_frames] 0 ]                                                                                                               
+        after 100 [list catch "wm title .lbp_console $prc"]
         incr ::___zz___(trace-level) -1
         if { $::___zz___(trace-level)  > 0} {
             return
@@ -1366,7 +1439,6 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         if { $::___zz___(trace-level)  < 0} {
             set ::___zz___(trace-level) 0
         }
-
         if [catch {
             set last [lindex [split [.lbp_console.cframe.text index end] .] 0]
             if { !$::___zz___(cb1) && !$::___zz___(cb3) } {
@@ -1393,7 +1465,7 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         incr ::___zz___(trace-level)
         set prc [lindex  $args 0 0] ;# get the proc name from the trace input
         set zzz [namespace exist _$prc] ;# first time a proc is called there's no namespace to clear up
-        after 300 [list catch "wm title .lbp_console $prc"]
+        after 100 [list catch "wm title .lbp_console $prc"]
         if { $zzz } {
 #           wait 1000
             if [catch {
@@ -1431,6 +1503,7 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 # ------------------------------------------------------  kill all the windows in the (vws) list  -----------------------
 
     } elseif { $func eq "clean" } { #close all vw+ windows, from the ___zz___(vws) list
+        set keeplist [list]
         foreach window $::___zz___(vws) {
             if { [lindex $args 0] eq "code" } {
                 if { [info command ${window}.sw.f.frame.l0] ne "" } {
@@ -1442,12 +1515,27 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
                 set cd "::[string range $window 1 end]::___[string range $window 2 end]"
                 if { $value eq  $cd} {
                 } else {
-                    continue
+                    lappend keeplist $window
+                    continue ;# next, so bypass the close
                 }
             }
             puts "close window= |$window| "
             destroy $window
         }
+        
+        set ::___zz___(vws) $keeplist                   ;# keep all data if a code operation, otherwise keep none
+        set ::___zz___(gangcb) 0
+        return
+# ------------------------------------------------------  manual all the windows in the (vws) list  -----------------------
+
+    } elseif { $func eq "manual" } { #manual all vw+ windows, from the ___zz___(vws) list
+        foreach window $::___zz___(vws) {
+            if { [info command ${window}.sw.f.frame.f2.cb7] ne "" } {
+                set var [ ${window}.sw.f.frame.f2.cb7 cget -variable]
+                set $var 1
+            }
+        }
+        return
 # ------------------------------------------------------  kill something  -----------------------------------------------
     } elseif { $func eq "kill" } { 
     
@@ -1459,10 +1547,10 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         } else {
             set debugger_name "debugger_main"
         }
-        $::___zz___(vw+) {  ::___zz___(bpnum)           ::___zz___(proc_wid)    ::___zz___(delay)       ::___zz___(lbp-lock)    ::___zz___(lbp-locka)  ::___zz___(lbp-lockb)    
+        $::___zz___(vw+) {  ::___zz___(bpnum)           ::___zz___(proc_wid)    ::___zz___(delay)       ::___zz___(lbp-lock)  ::___zz___(lbp+,pproc) ::___zz___(lbp+,pline)   ::___zz___(lbp+,line) 
                             ::___zz___(cb1)             ::___zz___(delaya)      ::___zz___(skips)       ::___zz___(delayb_count)
                             ::___zz___(skip_modulo)     ::___zz___(goto)        ::___zz___(go-window)   ::___zz___(lbp+,line)   ::___zz___(delayb)       
-                            ::___zz___(bp_messages_default)                     ::___zz___(updatesome)  ::___zz___(updatesomeN) ::___zz___(gang) ::___zz___(vws)
+                            ::___zz___(bp_messages_default)                     ::___zz___(updatesome)  ::___zz___(updatesomeN) ::___zz___(gang) ::___zz___(vws) ::___zz___(fontsize)
         }  $debugger_name ;#  ::___zz___() 
 # ------------------------------------------------------  lp command, functional back to caller  ------------------------
 
@@ -1718,7 +1806,8 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
     if { $bpid ne "" } {
         set search_id $bpid
     }
-    set ::___zz___(lbp+,line) -1
+    set ::___zz___(lbp+,pline) $::___zz___(lbp+,line) 
+        
     set proc_def [apply {{pdef string message show_instr} {
             
             set lines [split $pdef "\n"]
@@ -1898,8 +1987,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 
     if { [info command .lbp_console] eq ""} {
         set ::___zz___(lbp-lock) 0
-        set ::___zz___(lbp-locka) 0
-        set ::___zz___(lbp-lockb) 0
         set font {Consolas 12}
 #       set font {TkFixedFont 12}
 
@@ -1921,10 +2008,11 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         # Create a menu
         set m [menu .lbp_console.menu1 -tearoff 1 -tearoffcommand [list $::___zz___(util+) tearoff]]
         $m add command  -label      "util+ grid       - rearange windows"       -command "[list $::___zz___(util+) grid];raise .lbp_console"    -font TkFixedFont
-        $m add checkbutton -label   "move group       - if checked"             -variable ::___zz___(gangcb)    -indicatoron 1  -font TkFixedFont   
+        $m add checkbutton -label   "move group       - if checked"             -variable ::___zz___(gangcb)    -indicatoron 1  -font TkFixedFont   -command "[list $::___zz___(util+) gridck];raise .lbp_console"
         $m add separator                    
         $m add command  -label      "util+ clean      - close all  data windows"    -command [list $::___zz___(util+) clean]                -font TkFixedFont
         $m add command  -label      "util+ clean code - close code data windows"    -command [list $::___zz___(util+) clean code]           -font TkFixedFont
+        $m add command  -label      "util+ manual     - manual geom all"    -command [list $::___zz___(util+) manual]               -font TkFixedFont
         $m add separator 
         $m add command  -label      "No bp Msgs       - check all"                  -command [list $::___zz___(util+) no-bp-messages-all]           -font TkFixedFont
         $m add checkbutton -label   "No bp Msgs (def) - if checked"     -variable ::___zz___(bp_messages_default)   -indicatoron 1  -font TkFixedFont   
@@ -1932,9 +2020,14 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         $m add separator                    
         $m add command  -label      "Clear code window"                 -command {.lbp_console.cframe.text delete 1.0 end}              -font TkFixedFont
         $m add command  -label      "Bottom of code window"             -command {.lbp_console.cframe.text see end; .lbp_console.cframe.text mark set insert end}   -font TkFixedFont
+        $m add checkbutton -label   "minimal update exprimental"                -variable  ::___zz___(minupdate)    -indicatoron 1  -font TkFixedFont   
         $m add separator                    
         $m add command  -label      "List Call Frames - all"            -command [list $::___zz___(util+) frames-callback]              -font TkFixedFont
         $m add command  -label      "List Call Frames - just cmds"      -command [list $::___zz___(util+) frames-callback2]             -font TkFixedFont
+        $m add separator                    
+        $m add radiobutton  -label      "Small  Data Window Font (close to apply)"      -variable ::___zz___(fontsize)  -value 8        -font TkFixedFont
+        $m add radiobutton  -label      "Medium Data Window Font"       -variable ::___zz___(fontsize)  -value 10       -font TkFixedFont
+        $m add radiobutton  -label      "Larger Data Window Font"       -variable ::___zz___(fontsize)  -value 12       -font TkFixedFont
         
         bind .lbp_console.bframe.b1 <1> {tk_popup .lbp_console.menu1 %X %Y}
     
@@ -2071,10 +2164,10 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
  #      -------------------------------------------------
             
         label       .lbp_console.xframe.labell  -text "Show Lines" -relief raised -bd 0
-        set ::___zz___(proc_wid) 12
+#       set ::___zz___(proc_wid) 12
         
         
-        spinbox     .lbp_console.xframe.sboxl   -from 10            -to 100     -increment 1  -textvariable ::___zz___(proc_wid) -width 3 -font {courier 14} -command [list $::___zz___(util+) showlines %W %s %d]
+        spinbox     .lbp_console.xframe.sboxl   -from 1             -to 100     -increment 1  -textvariable ::___zz___(proc_wid) -width 3 -font {courier 14} -command [list $::___zz___(util+) showlines %W %s %d]
         bind        .lbp_console.xframe.sboxl  <MouseWheel> {apply [list {spinner value} { 
                                                                 if { $value > 0 } {
                                                                     $spinner invoke buttonup
@@ -2149,21 +2242,21 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                 }
                 if { $delay > 0 } {
                     tooltip::tooltip delay $delay
-                    tooltip::tooltip  .lbp_console.xframe.labell "show N lines above and below\ncurrent line"
+                    tooltip::tooltip  .lbp_console.xframe.labell "Show N lines below current line"
                     tooltip::tooltip  .lbp_console.xframe.lab3a  "Clear the command entry, where you can\nenter a command. Runs at global level, however\nso be careful"
                     tooltip::tooltip  .lbp_console.uframe.lab3c  "Clear the uplevel entry, where you can\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr"
 
-                    tooltip::tooltip .lbp_console.bframe.b1     "Menu of utility commands, left click"     
+                    tooltip::tooltip .lbp_console.bframe.b1     "Menu of utility commands, left click\ncan tearoff menu with ----------"     
 #                   tooltip::tooltip .lbp_console.bframe.b2     "Scroll to Bottom of the window"    
-                    tooltip::tooltip .lbp_console.bframe.b2a    "Keep the window steady, may result\nin some lines off screen"    
+                    tooltip::tooltip .lbp_console.bframe.b2a    "Keep the window steady, may result\nin some lines off screen\nbypasses .text see calls and\njust keeps scrollbar at the top"    
                     tooltip::tooltip .lbp_console.bframe.b3     "Smaller font"   
                     tooltip::tooltip .lbp_console.bframe.b4     "Larger font"   
-                    tooltip::tooltip .lbp_console.bframe.b5     "Open the Console"   
-                    tooltip::tooltip .lbp_console.bframe.b6     "Stop a go+ command, if running N breakpoints \nor running to line number"     
-                    tooltip::tooltip .lbp_console.bframe.b7     "Go - one step, or to next breakpoint" 
+                    tooltip::tooltip .lbp_console.bframe.b5     "Open the Console - only if in main thread\nthere is no console in tasks"   
+                    tooltip::tooltip .lbp_console.bframe.b6     "Stop a go+ command, if running N breakpoints \nor running to line number or run mode\nUse to view code with scrollbar"     
+                    tooltip::tooltip .lbp_console.bframe.b7     "Go - one step, or to next breakpoint\ndble click a line # to run to line\ncan use stop to break earlier" 
                     tooltip::tooltip .lbp_console.bframe.b9     "Go - until manually stopped - the animated go\ncan be much slower, but visible" 
-                    tooltip::tooltip .lbp_console.uframe.label  "Amount to delay in MS between break-points\nused when a g +/- is active to slow program\nfor better animated viewing - can adjust \nwith mousewheel or enter a valid integer\nNote, if > 0, even w/o bp's will run slower and\nupdates will occur in data windows\nTripples spinboxes: 100s 10s 1s"       
-                    tooltip::tooltip .lbp_console.xframe.label  "Precision, number of instructions / breakpoint\nonly when in Run mode\ndual spinboxes for 10's and 1's"       
+                    tooltip::tooltip .lbp_console.uframe.label  "Amount to delay in MS between break-points\nused when a g +/- is active or run mode \nto slow program for better animated viewing \ncan adjust with mousewheel or enter a valid integer\nif > 0 updates can occur in data windows since\nit enters event loop - 3 spinboxes: 100s 10s 1s"       
+                    tooltip::tooltip .lbp_console.xframe.label  "Precision, number of statements / breakpoint\nwhen in Run mode. A 0/1 are the same\nif > 1 can miss goto line breaks (dbl click)\nhigher=faster running - 2 spinboxes: 10's and 1's"       
 
                 }
             } err_code] {
@@ -2180,72 +2273,64 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 
     } else {
         if { $::___zz___(skips) <= 0 } {
-            .lbp_console.cframe.text delete 1.0 end
+#           .lbp_console.cframe.text delete 1.0 end
         }
     }
 
-# ------------------------------------------------------ output a range of lines around the current line     ---------------------------------
-    set no_result [apply {{code line} {
-        if {  $::___zz___(skips) <= 1} {
-            set wid $::___zz___(proc_wid)
-            set lines [split $code \n]
-            set nlines [llength $lines]
-            incr nlines -1
-            set from [expr {(   $line - $wid   )}]
-            set to   [expr {(   $line + $wid   )}]
-            set wid2 [expr {(   $wid + $wid   )}]
-            
-            if { $::___zz___(lbp-lock) } {
-                set from $::___zz___(lbp-locka)
-                set to   $::___zz___(lbp-lockb)
-            } else {
-                set ::___zz___(lbp-locka) $from 
-                set ::___zz___(lbp-lockb) $to 
-            }
-            if { $nlines <= $wid2 } {
-                set from 0
-                set to $nlines
-            } else {
-                if { $from <= 0 } {
-                    set to  [expr {(   $to - $from  +1 )}]
-                    set from 1
-                    
-                } elseif {$to > $nlines} {
-                    incr from  -[expr {(   $to - $nlines   )}] 
-                    set to $nlines
-                }   
-            }
+# ------------------------------------------------------ output all lines  new way can scroll all code too     ---------------------------------
 
-            set num 0
-            foreach linetxt $lines {
-                incr num
-                if { $num < $from || $num > $to } {
-                    continue
-                }
-                    .lbp_console.cframe.text insert end-1c "$linetxt\n"
-                    .lbp_console.cframe.text see end-1c
-#               if { $::___zz___(delay) > 0 } {
-#                   wait $::___zz___(delay)
-#               }
+# we have $proc_def $::___zz___(lbp+,line)
 
-            }
-            incr line
-            if { $line ne "" } {
-                if { $line < $from  } {
-                    .lbp_console.cframe.text replace 1.0 1.1 "\u2191"   ;# offscreen low - up arrow
-                }
-                if {  $line > $to } {
-                    .lbp_console.cframe.text replace end-1l end-1l+1c "\n\u2193" ;# down arrow
-                }
-            } else {
-                
-            }
-        }
-    
-    }} $proc_def $::___zz___(lbp+,line)]
 
+    set no_result [apply {{code name line} {
+    set line1 [expr {   max(1,$line - 1)   }]
+    set line2 [expr {   $line + $::___zz___(proc_wid)   }] ;# adjust via spinbox
+#   if { $line < 2 } {
+#       xputs "name= |$name| line= |$line| size is [string length $code]"
+#   }
+    if { $::___zz___(lbp+,pproc) ne $name ||  $::___zz___(minupdate) == 0} {
+        .lbp_console.cframe.text delete 1.0 end
+        .lbp_console.cframe.text insert end-1c "$code\n"
+    } else {
         
+        set pline [expr {   $::___zz___(lbp+,pline) +1  }]
+        set iline [expr {   $line +1  }]  
+        if { $pline > 0 } {
+            if { [.lbp_console.cframe.text get $pline.0] eq  $::___zz___(arrow)} {
+                .lbp_console.cframe.text delete $pline.0 
+                .lbp_console.cframe.text insert $pline.0 "  " 
+            } else {
+                .lbp_console.cframe.text delete 1.0 end
+                .lbp_console.cframe.text insert end-1c "$code\n"
+            }
+        } else {
+        }
+        if { [.lbp_console.cframe.text get $iline.0] eq  $::___zz___(arrow)} {
+        } else {
+            .lbp_console.cframe.text delete $iline.0 $iline.2 
+            .lbp_console.cframe.text insert $iline.0    $::___zz___(arrow) 
+        
+        }
+        
+        
+
     }
+    if { !$::___zz___(lbp-lock)  } {
+        .lbp_console.cframe.text see ${line2}.0 
+        .lbp_console.cframe.text see ${line1}.0
+    }
+    set ::___zz___(lbp+,pproc) $name
+    }} $proc_def $proc_name $::___zz___(lbp+,line)]
+    
+#.lbp_console.cframe.text delete 5.0 5.1
+#.lbp_console.cframe.text insert 5.0 --
+# ------------------------------------------------------ output a range of lines around the current line old ---------------------------------
+
+    
+} else {;# check button checks
+    set ::___zz___(lbp+,pline) -1
+}
+
     if { $comment eq "" } {
         set colon ""
     } else {
@@ -2360,12 +2445,12 @@ proc instrument+ {procedure args} {
         set result [instrument+ ${theclass}__z__$themethod] ;# instrument this fake proc
         
         set lines0 [split $result \n]
-        set lines [lrange $lines0 1 end-3]
-        set line1 [string range [lindex $lines0 0] $len end] ;# remove the 2 traces at the end - note, these traces are what clear the namespace on each entry, so we have a fresh one with no locals - caused the method var bug by not having them
+        set lines [lrange $lines0 1 end-3] ;# remove the 2 traces at the end - note, these traces are what clear the namespace on each entry, so we have a fresh one with no locals - caused the method var bug by not having them
+        set line1 [string range [lindex $lines0 0] $len end]
 
         set line1 [regsub {;lbp\+} $line1 "catch {$::___zz___(util+) init_method  _$themethod \[info vars\]} ;lbp+"]
 
-        set traces [lrange $lines0 end-2 end] ;# eventually we need to see if we can trace a method, this is just for the color change on method leaving - but note comment above
+        set traces [lrange $lines0 end-2 end] ;# eventually we need to see if we can trace a method, -- no, there is no trace for methods, so we now add a statement at the beginning of a method to use the new init_method, and note comment above
         set newline1 "oo::define ${theclass} $lbracket method $themethod $line1 \n" ;# rebuild the method def
         set result $newline1 ;# start with a new line 1, which is the oo::define and method declaration
         foreach item [lmap xxx $lines {string cat $xxx \n}] {
@@ -2374,7 +2459,7 @@ proc instrument+ {procedure args} {
         append result "\n$rbracket\n"
         rename ${theclass}__z__$themethod {} ;# get rid of the temporary proc we built so we could instrument it
         append result "oo::define $theclass export $themethod\n"
-        return $result
+        return $result ;# user needs to eval this, and there is no -revert for methods
     }
 
 # -------------------------------------------------------- instrument a proc ...
@@ -2396,7 +2481,8 @@ proc instrument+ {procedure args} {
             error "cannot find an original to revert to for $procedure - was it already reverted?"
             return
         }
-        return "$procedure reverted to original"
+        puts stderr "$procedure reverted to original"
+        return ""
     }
     if { [info exists ::___zz___(original,$procedure)] } {
         error "The proc $procedure is already instrumented, you must -revert first  [info exists ::___zz___(original,$procedure)]"
@@ -2590,7 +2676,7 @@ proc instrument+ {procedure args} {
     append out "trace add execution $procedure enter \{$::___zz___(util+) tracer\}\n"
     append out "trace add execution $procedure leave \{$::___zz___(util+) tracerend\}\n"
     if { !$return_seen && $no_warn == 0} {
-        puts stderr "Warning, no return found in $procedure"
+        puts stderr "instrument+ Warning, no return found in $procedure - add one or use -nowarn"
     }
     return $out
 }
@@ -2608,6 +2694,9 @@ if { 00 } {
 namespace eval vwdebug {
     variable cash
     set cash(0) "inited"
+    
+    
+    
     proc do_destroy {kind args} {
         variable cash
         if { $::___zz___(cache) } {
@@ -2706,7 +2795,6 @@ namespace eval vwdebug {
         
     }
 
-    
 } ;# end namespace vwdebug
 if { $::___zz___(tooltipsbuiltin) } {
 # tooltip.tcl --
