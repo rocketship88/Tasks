@@ -1135,7 +1135,7 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
             return $err_code 
         }
         return "ok"
-    } elseif { $func eq "tab" } {           ;# see if the current line is a complete command, if not, find the end on following lines
+    } elseif { $func eq "tabsize" } {           ;# see if the current line is a complete command, if not, find the end on following lines
         set ::___zz___(tabsize) [lindex $args 0 ]
         $::___zz___(util+) fontsize .lbp_console.cframe.text +1 ;# bigger/smaller to adjust
         $::___zz___(util+) fontsize .lbp_console.cframe.text -1
@@ -1157,6 +1157,7 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
 # ------------------------------------------------------ showlines    --------------------------------------------------
 
     } elseif { $func eq "showlines" } {     ;# number of lines to show, is now immediate if one changes the spinbox for lines
+        set ::___zz___(minupdate) 0
         set ::___zz___(tail) 1
         after 0 $::___zz___(go+)
         return
@@ -1640,13 +1641,14 @@ if { 00 } {
     } elseif { $func eq "?" } {
         puts "util+ help: "
         puts "     lp <procedure>       display the current code for a proc "
+        puts "     tabsize N            set tabsize in code window "
         puts "     smod    #            set the modula for reporting on skiping (now $::___zz___(skip_modulo))"
         puts "     clean                close all the data windows #= [llength $::___zz___(vws)]"
         puts "     grid ?y-extra? ?x-incr? reposition all data windows uses 15 / 500 for y/x"
     } elseif { $func eq "stuff" } {
         dothis-stuff
     } else {
-        error "invalid util+ function, should be one of lp, fontsize, smod, clean, ... or ?"
+        error "invalid util+ function, should be one of lp, fontsize, smod, clean, tabsize ... or ?"
     }
 }
 
