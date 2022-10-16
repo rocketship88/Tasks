@@ -72,8 +72,8 @@
                                         {+debug=D:/stuff/vw debugging.tcl}    "# *** need to setup the correct path here ***"       \
                                         {#-if {$::t_name eq "fibsize0"} {eval [instrument+ fibsize] } }  "# use this to just instrument in one task"  \
                                         fibonacci                                                                                   \
-                                        #+fibonacci                           "# import fibonacci"                                  \
-                                        +fibsize                              "# import fibonaci and instrument fibsize"            \
+                                        #+fibonacci                           "# instrument fibonacci by uncomment"                 \
+                                        +fibsize                              "# import fibonaci (above) and instrument fibsize"    \
                                                                                                                                     \
                                         {-package require Tk ; wm withdraw .}  "# we got enough windows already"                    \
                                  ]
