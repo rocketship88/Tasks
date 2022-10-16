@@ -21,7 +21,7 @@ The run mode can also be used as a simple dynamic profiler by visualizing which 
 
 One can choose when and which procedures or methods to instrument and non-instrumented code runs at full tcl/tk speed. The instrumenter saves the original code (for procs only at present) which can be restored and re-instrumented dynamically. It works with Linux or Windows. The Linux Tk bug (multiple threads calling Tk at startup causing periodic crashes) appears to be fixed in version 8.6.12. 
 
-A separate pdf manual is included with a section on using it with tasks (or just in the main thread). In the works is a YT video to demonstrate the tool.
+A separate pdf manual is included with a section on using it with tasks (or just in the main thread). There is a YT video to demonstrate the tool. See at https://youtu.be/7TOgFMNi1II
 
 
 
