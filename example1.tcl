@@ -31,7 +31,7 @@
     tcl::tm::path add d:/stuff              ;# set to path where to find tasks (say [pwd] if in local)
     package require tasks 1.13
     namespace import tasks::*
-    
+    package require Tk ;# or just run with wish not tclsh
     
     catch {
         console show
