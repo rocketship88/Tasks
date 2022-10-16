@@ -15,7 +15,7 @@
 #   to step or run either. it will resize and position one time. You can also play with the delay 
 #   controls and watch the task_monitor.
 #
-#   to also instrument the fibonaci proc itself, enter in a command window:  eval [i fibonacci]
+#   to also instrument the fibonaci proc itself, enter in a command entry:  eval [i fibonacci]
 #   to stop instrumenting it enter:   i fibonacci -revert   (with or without the eval is ok)   
 #
 
