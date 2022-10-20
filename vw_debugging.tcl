@@ -1836,13 +1836,15 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                     }
                 }
                 if { ! $show_instr } {
-                    set zzz [regsub -nocase -linestop -lineanchor -all {^.*;# instrument-show-begin(.*);# instrument-show-end$} $line {\1 (removed lbp+)} line]
+                    set zzz [regsub -nocase -linestop -lineanchor -all {^.*;# instrument-show-begin(.*);# instrument-show-end$} $line {\1 } line]
                     if { $zzz <= 0 || 1} { ;# let's do this all the time, shouldn't hurt, but I'll leave in the if test as a reminder
                         # didn't match, so line comes out the same, so now just test for our instrumentation to hide, if did match, we extract original comment only
                         set zzz 0
                         set zzz [regsub  {\;lbp\+ step\-instrument.*$} $line "" line]
                     }
-                    
+                    if { $num < 1} {
+                        regsub -nocase -linestop -lineanchor -all {(^method.*\{)([ \t]*catch.*init_method.*info vars\]\})} $line {\1} line
+                    }
                     
                 }
                 append out "${cur}[format %4d [incr num]]\t$line\n" 
@@ -2413,23 +2415,21 @@ proc instrument+ {procedure args} {
     
         set theclass [lindex $args 0 ]
         if { [llength $args] > 2 } {
-            set all {}
             foreach item [lrange $args 1 end] {
-                append all [instrument+ -class $theclass $item] 
+                instrument+ -class $theclass $item  
             }
-            return $all
+            return ""
         }
         set themethod [lindex $args 1 ]
         if { $themethod eq "*" } {
-            set all {}
             foreach item [info class methods $theclass -private] {
                 if { $no_warn } {
-                    append all [instrument+ -class $theclass $item -nowarn] 
+                    instrument+ -class $theclass $item -nowarn  
                 } else {
-                    append all [instrument+ -class $theclass $item] 
+                    instrument+ -class $theclass $item  
                 }
             }
-            return $all
+            return ""
         }
         
         if [catch {
@@ -2442,14 +2442,12 @@ proc instrument+ {procedure args} {
         set arglist [lindex $def 0]
         set mcode [lindex $def 1]
         set temp "proc ${theclass}__z__$themethod \{$arglist\} \{ $mcode\}\n" ;# construct a fake proc
-        set len [string length "proc ${theclass}__z__$themethod"]
         eval $temp ;# now define the new fake proc, so we can instrument it normally
-        set result [instrument+ ${theclass}__z__$themethod] ;# instrument this fake proc
-        
+        set result [instrument+ ${theclass}__z__$themethod -noeval] ;# instrument this fake proc
         set lines0 [split $result \n]
         set lines [lrange $lines0 1 end-3] ;# remove the 2 traces at the end - note, these traces are what clear the namespace on each entry, so we have a fresh one with no locals - caused the method var bug by not having them
-        set line1 [string range [lindex $lines0 0] $len end]
-
+        set len [string first "\{" [lindex $lines0 0]]
+        set line1 [string range [lindex $lines0 0] $len-1 end]
         set line1 [regsub {;lbp\+} $line1 "catch {$::___zz___(util+) init_method  _$themethod \[info vars\]} ;lbp+"]
 
         set traces [lrange $lines0 end-2 end] ;# eventually we need to see if we can trace a method, -- no, there is no trace for methods, so we now add a statement at the beginning of a method to use the new init_method, and note comment above
@@ -2461,18 +2459,31 @@ proc instrument+ {procedure args} {
         append result "\n$rbracket\n"
         rename ${theclass}__z__$themethod {} ;# get rid of the temporary proc we built so we could instrument it
         append result "oo::define $theclass export $themethod\n"
-        return $result ;# user needs to eval this, and there is no -revert for methods
+        eval $result        
+        return "" ;# there is no -revert for methods, if the result is eval'd not a problem (since we used to require that)
     }
 
 # -------------------------------------------------------- instrument a proc ...
-
+    set frames [vwdebug::get_frames]
+    set frames_trm {}
+    foreach item $frames {
+        lappend frames_trm [string trimleft $item :]    
+    }
     set enable 1 ;# enable instrumenting
 #   set pcode [getproc $procedure]
     set norb 0
+    set noeval 0
     if { [lsearch "-norb" $args] >= 0 } {  
         set norb 1
     }
-    if { [lsearch "-revert" $args] >= 0 } {  
+    if { [lsearch "-noeval" $args] >= 0 } {  
+        set noeval 1
+    }
+    set procedure  [string trimleft $procedure ":"]
+    if { $procedure in $frames_trm } {
+        error "cannot change \"$procedure \"when it's in the active call frames: \{$frames_trm\}"
+    }
+    if { [lsearch "-revert" $args] >= 0 } { 
         if { [info exists  ::___zz___(original,$procedure)] } {
             eval $::___zz___(original,$procedure) ;# this automatically removes the trace, so we need not do it ourselves
             unset ::___zz___(original,$procedure) ;# remove this so it will fail if user tries it twice
@@ -2487,7 +2498,7 @@ proc instrument+ {procedure args} {
         return ""
     }
     if { [info exists ::___zz___(original,$procedure)] } {
-        error "The proc $procedure is already instrumented, you must -revert first  [info exists ::___zz___(original,$procedure)]"
+        error "The proc \"$procedure\" is already instrumented, you must -revert first  [info exists ::___zz___(original,$procedure)]"
         return
     }
     set pcode [apply { {proc} {
@@ -2514,8 +2525,11 @@ proc instrument+ {procedure args} {
         
                 
     }} $procedure] 
-# lets stash away pcode, which has the original, so we can get it back
-    set ::___zz___(original,$procedure) $pcode
+# lets stash away pcode, which has the original, so we can get it back, but only if we do the eval
+    if { $noeval == 0} {
+        set ::___zz___(original,$procedure) $pcode
+        
+    }
 
 
     set lines [split [string trimright $pcode \n] \n]
@@ -2680,7 +2694,11 @@ proc instrument+ {procedure args} {
     if { !$return_seen && $no_warn == 0} {
         puts stderr "instrument+ Warning, no return found in $procedure - add one or use -nowarn"
     }
-    return $out
+    if { $noeval } {
+        return $out
+    }
+    eval $out
+    return ""
 }
 
 
@@ -2696,8 +2714,6 @@ if { 00 } {
 namespace eval vwdebug {
     variable cash
     set cash(0) "inited"
-    
-    
     
     proc do_destroy {kind args} {
         variable cash
