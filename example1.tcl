@@ -24,7 +24,7 @@
 #####################################################################################
 
 
-    source "D:/stuff/vw debugging.tcl"      ;# we load the debugger 3 times, once here and in each task
+    source "D:/stuff/vw_debugging.tcl"      ;# we load the debugger 3 times, once here and in each task
     set ::___zz___(bp_messages_default)  0  ;# we can change the config parameters w/o modifying the file
 
     
@@ -69,7 +69,7 @@
         return "Size -> [string length $n]" 
     } -tasks -2 -import_tasks    [list  "# this is a comment list element"                                                          \
                                         {-set ::t_debug 0x2}                  "# direct all task puts/putz to console or stdout"    \
-                                        {+debug=D:/stuff/vw debugging.tcl}    "# *** need to setup the correct path here ***"       \
+                                        {+debug=D:/stuff/vw_debugging.tcl}    "# *** need to setup the correct path here ***"       \
                                         {#-if {$::t_name eq "fibsize0"} {eval [instrument+ fibsize] } }  "# use this to just instrument in one task"  \
                                         fibonacci                                                                                   \
                                         #+fibonacci                           "# instrument fibonacci by uncomment"                 \
