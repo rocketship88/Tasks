@@ -5,16 +5,18 @@ set ::___zz___(proc_wid) 5          ;# the min number of lines to show BELOW (ju
 set ::___zz___(auto_list_default) 1 ;# this sets the auto list checkbox to this value at first creation of checkbox
 set ::___zz___(bp_messages_default) 1 ;# this sets the no bp messages checkbox to this value at first creation of checkbox
 set ::___zz___(console_hack) 0      ;# if 1, installs a console hack to allow an empty <cr> line on console, repeats last command (handy for go+)
-set ::___zz___(tooltips) 1000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
+set ::___zz___(tooltips) 3000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
 set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file if no tooltips package available, e.g. on linux w/o tcllib
 set ::___zz___(use_ttk) 0           ;# if 1, the windows use the themed ttk
-set ::___zz___(max_size) 3000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
+set ::___zz___(max_size) 1000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
 set ::___zz___(max_history) 50      ;# the maximum number of commands saved in the 2 command histories (command and uplevel)
 set ::___zz___(skip_modulo) 100     ;# when using a large skip count on go+ this is the number of steps between reporting remaining messages
 set ::___zz___(arrow) "\u27F6"      ;# Unicode arrow, can be 2 char positions also, can cause a wobble of the line number, if you like that
 set ::___zz___(tabsize) 4           ;# code window tabsize
 set ::___zz___(fontsize) 12         ;# data window font size (rest of window only works correctly with a value of 12 - for now)
 set ::___zz___(minupdate) 1         ;# experimental
+set ::___zz___(deadman) 100         ;# when all bp's are off, we can appear to freeze if there's a lot of work to do, so every so often we update
+set ::___zz___(deadman2) -1         ;# decr this guy until he reaches 0, then set to deadman, first thing we check in bp and lbp
 
 # choose one set or the other of the below, must be defined to something however
 #set ::___zz___(black) black        ;# the code window colors, black is the foreground, white the background, yellow backgound when proc done
@@ -66,9 +68,12 @@ set ::___zz___(lbp-ontop)  0    ;# the code window on top checkbox
 set ::___zz___(lbp-lock) {}     ;# used to lock the code window in place
 set ::___zz___(updatesome)  10  ;# update at least once this many steps
 set ::___zz___(updatesomeN)  0  ;# counter to use with updatesome
+set ::___zz___(forcerefresh) 300  ;# to make it recompute too large variables, do this every N bp's
 set ::___zz___(gangcb)       0  ;# checkbutton for gang moving of data windows, first window moves all together
 set ::___zz___(gang)         {} ;# 
+set ::___zz___(noflylist)    {} ;# list of bad variables we no longer can -textvariable with
 set ::___zz___(cache)       1   ;# cache window label/entries - too slow on linux w/o this
+set ::___zz___(coverage)    0   ;# don't erase arrows if 1
 #set ::___zz___(c,*)            ;# array data for window caching, do not modify
 
 set ::___zz___(vw+) "vw+"       ;# the name of the vw+ proc (can perhaps change these if desired, both here and any aliases)
@@ -577,16 +582,15 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 if { ! [string match "*::*" $it] } { ;# we need to access it as global from here, so add the ::
                     set it "::$it"
                 }
-#               set sanity [eval "string length \$$it"]
                 set sanity [string length [set $it]]
-#               set sanityd [eval "string range  \$$it 0 $sizemax"]
-                set sanityd [string range [set $it] 0 $sizemax]
+#                                                                                                                       puts "sanity= [format %10s |$sanity| ] it= |$it|  "
                 if { $sanity > $sizemax } {
                     set splitup [split $it "::"]
                     set nspace  [lindex $splitup  2 ]
                     set nname  __$nspace
                     set fname "::${nspace}::${nname}" ;# check for our proc name, it's the namespace name used twice with extra __
                     set zok 0
+                    set sanityd [string range [set $it] 0 $sizemax] ;# the most we will display
                     set zerror "Too large to safely monitor : $sanity  = $sanityd"
                     if { $it eq $fname } { ;# if it's ours, we'll be less cautious and allow for a longer string, since it's the entire proc code
                         if { $sanity < ($sizemax * 10) } {
@@ -598,6 +602,7 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 }
             } err_code] {
                 set zerror  "$err_code"
+                puts "zerror= |$zerror| "
                 set zok 0
             }
 # -------------------------------------------------------------labels/entry for variable types or arr(var) also not an array type --------------------------------
@@ -605,7 +610,8 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             
             vwdebug::do_label 2 $w.l$n -width $maxwid -text $i -anchor w  -font "$size"  -bd 1  -relief groove
 #       vwait ::ffff
-            if { ! $zok  } {
+#       puts stderr "resume"
+            if { ! $zok || $i in $::___zz___(noflylist) } {
 #               continue
                 vwdebug::do_entry 2 $w.e$n  -width $wid -textvariable {} -bg LightYellow1 -font "$size" ;# no text variable for this one
                 $w.e$n insert end $zerror
@@ -618,6 +624,20 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 # ---------------------------------------------- is it zok, if it is then continue with bindings  ----------------------
 
         if { $zok } {
+            vwdebug::do_bind  $w.l$n <3> {apply [list {win} {
+                    set label [$win cget -text]
+                    puts stderr "$label is on the no -textvariable list"
+                    lappend ::___zz___(noflylist) $label
+                    set foofoo [regsub {\.l} $win .e    ]                                                                                       
+                    if [catch {
+                        $foofoo config -textvariable {} -bg "light pink"
+                    } err_code] {
+                        puts stderr $err_code 
+                    }
+                } ] %W}
+            vwdebug::do_bind  $w.e$n <3> {apply [list {win} {
+                    puts stderr "RC'd entry window $win -textvariable is /[$win cget -textvariable]/ Right Click the label to disable"
+                } ] %W}
             vwdebug::do_bind  $w.l$n <1> {apply [list {win} {
                     set foofoo [$win cget -text]
                     if { [string range $foofoo end-1 end] eq "()" } {
@@ -812,6 +832,10 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
 
 
 proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3rd, passed in from lbp+ from the windows checkbox options
+    if { [incr ::___zz___(deadman2) -1]  < 0} {
+        update ;# to avoid freezing totally
+        set  ::___zz___(deadman2) $::___zz___(deadman)
+    }
 # ---------------------------------------------- spinbox delay setting -------------------------------------------------
 
     if { $::___zz___(delaya) > 0 } {
@@ -1548,10 +1572,12 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         } else {
             set debugger_name "debugger_main"
         }
-        $::___zz___(vw+) {  ::___zz___(bpnum)           ::___zz___(proc_wid)    ::___zz___(delay)       ::___zz___(lbp-lock)  ::___zz___(lbp+,pproc) ::___zz___(lbp+,pline)   ::___zz___(lbp+,line) 
+        $::___zz___(vw+) {  ::___zz___(bpnum)           ::___zz___(cache)       ::___zz___(max_size)    ::___zz___(proc_wid)    ::___zz___(delay)       
+                            ::___zz___(lbp-lock)        ::___zz___(lbp+,pproc)  ::___zz___(lbp+,pline)  ::___zz___(lbp+,line)   
                             ::___zz___(cb1)             ::___zz___(delaya)      ::___zz___(skips)       ::___zz___(delayb_count)
                             ::___zz___(skip_modulo)     ::___zz___(goto)        ::___zz___(go-window)   ::___zz___(lbp+,line)   ::___zz___(delayb)       
-                            ::___zz___(bp_messages_default)                     ::___zz___(updatesome)  ::___zz___(updatesomeN) ::___zz___(gang) ::___zz___(vws) ::___zz___(fontsize)
+                            ::___zz___(bp_messages_default)                     ::___zz___(updatesome)  ::___zz___(updatesomeN) ::___zz___(gang) ::___zz___(vws) 
+                            ::___zz___(fontsize)        ::___zz___(deadman)     ::___zz___(deadman2)    ::___zz___(noflylist)   ::___zz___(forcerefresh)
         }  $debugger_name ;#  ::___zz___() 
 # ------------------------------------------------------  lp command, functional back to caller  ------------------------
 
@@ -1658,6 +1684,10 @@ if { 00 } {
 
 #$::___zz___(lbp+)
 proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a proc, will create a window with local vars, id optional
+    if { [incr ::___zz___(deadman2) -1]  < 0} {
+        update ;# to avoid freezing totally
+        set  ::___zz___(deadman2) $::___zz___(deadman)
+    }
 
     
 # ------------------------------------------------------  lbp + command, see if can we get out quickly  -----------------
@@ -1876,6 +1906,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                     break
                 }
                 set lvar [namespace tail $item]
+# ---------------------------------------- + -----------  check if the variable already exists but just changed value   ------------------------
                 if [catch {
                     set cmd "expr {\$::___zz___(temp,0)  == \$\{${lvar}\} } " ;# will get an error if the variable is an array - could optimise here, but not yet, we just let it do full update to get the indices correct   
                     set zzz [uplevel 1 $cmd  ]
@@ -1963,7 +1994,8 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 #   vwait forever
 
 # ------------------------------------------- * --------------------- call to get the window updated, by CALLING VW + from here --------------
-    if { (! $equal) || 0} {
+#                                                                                                                       puts "equal= |$equal| "
+    if { (! $equal) ||  ($::___zz___(bpnum) % $::___zz___(forcerefresh) == 0 ) } {
 #       vwait forever
                                 $::___zz___(vw+) "${ns}::" .$ns 
     } else {
@@ -2025,6 +2057,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         $m add command  -label      "Clear code window"                 -command {.lbp_console.cframe.text delete 1.0 end}              -font TkFixedFont
         $m add command  -label      "Bottom of code window"             -command {.lbp_console.cframe.text see end; .lbp_console.cframe.text mark set insert end}   -font TkFixedFont
         $m add checkbutton -label   "minimal update exprimental"                -variable  ::___zz___(minupdate)    -indicatoron 1  -font TkFixedFont   
+        $m add checkbutton -label   "coverage          - don't erase arrows"                            -variable  ::___zz___(coverage) -indicatoron 1  -font TkFixedFont   
         $m add separator                    
         $m add command  -label      "List Call Frames - all"            -command [list $::___zz___(util+) frames-callback]              -font TkFixedFont
         $m add command  -label      "List Call Frames - just cmds"      -command [list $::___zz___(util+) frames-callback2]             -font TkFixedFont
@@ -2301,8 +2334,10 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         set iline [expr {   $line +1  }]  
         if { $pline > 0 } {
             if { [.lbp_console.cframe.text get $pline.0] eq  $::___zz___(arrow)} {
+                if { $::___zz___(coverage) == 0 } {
                 .lbp_console.cframe.text delete $pline.0 
                 .lbp_console.cframe.text insert $pline.0 "  " 
+                }
             } else {
                 .lbp_console.cframe.text delete 1.0 end
                 .lbp_console.cframe.text insert end-1c "$code\n"
@@ -2725,7 +2760,7 @@ namespace eval vwdebug {
                 $w config -text "\u220E" ;# black square
             } else { ;# an entry
                 set var [$w cget -textvariable]
-                $w config -textvariable {} -state normal
+                $w config -textvariable {} -state normal -bg white
                 $w delete 0 end
 #               $w insert 0 "\u2400"    
             }
