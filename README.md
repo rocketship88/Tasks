@@ -19,7 +19,9 @@ The included instrumenter can dynamically add breakpoints to a proc or method wh
 
 The run mode can also be used as a simple dynamic profiler by visualizing which lines are being executed in a procedure when run at moderate speed. 
 
-One can choose when and which procedures or methods to instrument and non-instrumented code runs at full tcl/tk speed. The instrumenter saves the original code (for procs only at present) which can be restored and re-instrumented dynamically. It works with Linux or Windows. The Linux Tk bug (multiple threads calling Tk at startup causing periodic crashes) appears to be fixed in version 8.6.12. 
+One can choose when and which procedures or methods to instrument and non-instrumented code runs at full tcl/tk speed. The instrumenter saves the original code (for procs only at present) which can be restored and re-instrumented dynamically. The coverage option can be used to see which lines have been executed in a procedure or method (best used when only 1 is instrumented). The debugger now includes the widget tree browse tool from the Tasks module since the debugger can be used standalone as well (i.e. on non tasks code).
+
+It works with Linux or Windows. The Linux Tk bug (multiple threads calling Tk at startup causing periodic crashes) appears to be fixed in version 8.6.12. 
 
 A separate pdf manual is included with a section on using it with tasks (or just in the main thread). There is a YT video to demonstrate the tool. See at https://youtu.be/7TOgFMNi1II
 
