@@ -9,6 +9,7 @@ set ::___zz___(tooltips) 3000       ;# if > 0 tooltip enabled and value=delay, i
 set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file if no tooltips package available, e.g. on linux w/o tcllib
 set ::___zz___(use_ttk) 0           ;# if 1, the windows use the themed ttk
 set ::___zz___(max_size) 1000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
+set ::___zz___(max_array_size) 500  ;# the maximum size of a array
 set ::___zz___(max_history) 50      ;# the maximum number of commands saved in the 2 command histories (command and uplevel)
 set ::___zz___(skip_modulo) 100     ;# when using a large skip count on go+ this is the number of steps between reporting remaining messages
 set ::___zz___(arrow) "\u27F6"      ;# Unicode arrow, can be 2 char positions also, can cause a wobble of the line number, if you like that
@@ -33,10 +34,10 @@ set ::___zz___(yellowx) black       ;# but need to make text dark to read it
 #set ::___zz___(bwidget) 0 ;# uncomment this if BWidgets are not wanted, leave undefined and it will try to use it (do not set to 1 here)
 catch {history keep 100}            ;# keep console history more than just 20, can comment this out, it's for debugging the debugger
 
-interp alias {} v {} vw+ ;# shorthands since we might be typing these, optional
-interp alias {} g {} go+
-interp alias {} u {} util+
-interp alias {} i {} instrument+
+interp alias {} vvv {} vw+ ;# shorthands since we might be typing these, optional
+interp alias {} ggg {} go+
+interp alias {} uuu {} util+
+interp alias {} iii {} instrument+
 
 # - ------------------------------
 # C O N N F I G U R A T I O N end
@@ -73,7 +74,7 @@ set ::___zz___(gangcb)       0  ;# checkbutton for gang moving of data windows, 
 set ::___zz___(gang)         {} ;# 
 set ::___zz___(noflylist)    {} ;# list of bad variables we no longer can -textvariable with
 set ::___zz___(cache)       1   ;# cache window label/entries - too slow on linux w/o this
-set ::___zz___(coverage)    0   ;# don't erase arrows if 1
+set ::___zz___(coverage)    0   ;# don't erase arrows if 1, needs new minimal updates to work
 #set ::___zz___(c,*)            ;# array data for window caching, do not modify
 
 set ::___zz___(vw+) "vw+"       ;# the name of the vw+ proc (can perhaps change these if desired, both here and any aliases)
@@ -308,8 +309,13 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                 continue
             }
             if {[array exists ::$gvar]} { ;# it is an array get some indices only
+                if { [array size ::$gvar] > $::___zz___(max_array_size) } {
+                    set val "() too large: [array size ::$gvar] [lrange [lsort -dictionary  [array names ::$gvar] ] 0 100]"
+                    lappend argsn [list $gvar $val]
+                } else {
                 set val "() [lsort -dictionary [array names ::$gvar]]"
                 lappend argsn [list $gvar $val]
+                }
             } elseif { [info exists ::${gvar}] } {
                 lappend argsn [list $gvar {}]
             } else {
@@ -2053,8 +2059,8 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         $m add separator                    
         $m add command  -label      "Clear code window"                 -command {.lbp_console.cframe.text delete 1.0 end}              -font TkFixedFont
         $m add command  -label      "Bottom of code window"             -command {.lbp_console.cframe.text see end; .lbp_console.cframe.text mark set insert end}   -font TkFixedFont
-        $m add checkbutton -label   "minimal update exprimental"                -variable  ::___zz___(minupdate)    -indicatoron 1  -font TkFixedFont   
-        $m add checkbutton -label   "coverage          - don't erase arrows"                            -variable  ::___zz___(coverage) -indicatoron 1  -font TkFixedFont   
+        $m add checkbutton -label   "minimal update    - required for coverage"             -variable  ::___zz___(minupdate)    -indicatoron 1  -font TkFixedFont   -command {if    {$::___zz___(minupdate) == 0    } {  set ::___zz___(coverage)  0     }}
+        $m add checkbutton -label   "coverage          - don't erase arrows"    -command {if    {$::___zz___(coverage) == 0 } { .lbp_console.cframe.text delete 1.0 end    }}   -variable  ::___zz___(coverage) -indicatoron 1  -font TkFixedFont   
         $m add separator                    
         $m add command  -label      "List Call Frames - all"            -command [list $::___zz___(util+) frames-callback]              -font TkFixedFont
         $m add command  -label      "List Call Frames - just cmds"      -command [list $::___zz___(util+) frames-callback2]             -font TkFixedFont
