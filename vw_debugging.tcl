@@ -583,7 +583,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
                     set it "::$it"
                 }
                 set sanity [string length [set $it]]
-#                                                                                                                       puts "sanity= [format %10s |$sanity| ] it= |$it|  "
                 if { $sanity > $sizemax } {
                     set splitup [split $it "::"]
                     set nspace  [lindex $splitup  2 ]
@@ -610,7 +609,6 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
             
             vwdebug::do_label 2 $w.l$n -width $maxwid -text $i -anchor w  -font "$size"  -bd 1  -relief groove
 #       vwait ::ffff
-#       puts stderr "resume"
             if { ! $zok || $i in $::___zz___(noflylist) } {
 #               continue
                 vwdebug::do_entry 2 $w.e$n  -width $wid -textvariable {} -bg LightYellow1 -font "$size" ;# no text variable for this one
@@ -1994,7 +1992,6 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 #   vwait forever
 
 # ------------------------------------------- * --------------------- call to get the window updated, by CALLING VW + from here --------------
-#                                                                                                                       puts "equal= |$equal| "
     if { (! $equal) ||  ($::___zz___(bpnum) % $::___zz___(forcerefresh) == 0 ) } {
 #       vwait forever
                                 $::___zz___(vw+) "${ns}::" .$ns 
@@ -2065,6 +2062,8 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         $m add radiobutton  -label      "Small  Data Window Font (close to apply)"      -variable ::___zz___(fontsize)  -value 8        -font TkFixedFont
         $m add radiobutton  -label      "Medium Data Window Font"       -variable ::___zz___(fontsize)  -value 10       -font TkFixedFont
         $m add radiobutton  -label      "Larger Data Window Font"       -variable ::___zz___(fontsize)  -value 12       -font TkFixedFont
+        $m add separator                    
+        $m add command      -label      "Widget Tree Browser"           -command {vwdebug::wtree}                       -font TkFixedFont
         
         bind .lbp_console.bframe.b1 <1> {tk_popup .lbp_console.menu1 %X %Y}
     
@@ -2845,8 +2844,220 @@ namespace eval vwdebug {
         }
         
         return $result
-        
     }
+        
+proc cputs {dest string} {
+    if { [info commands console] eq "" } {
+        puts $string
+    } else {
+    if { ! [info exist ::tk::my_color_set] } {
+        set ::tk::my_color_set 1
+        console eval {
+        set back grey30
+        set fore white
+        # if font not specified, it will honor console's larger/smaller
+        .console tag configure debug              -foreground black -selectbackground $back -selectforeground $fore
+        .console tag configure normal             -foreground black -selectbackground $back -selectforeground $fore
+        .console tag configure green              -foreground \#408f40 -background \#e8e8e8 -selectbackground $back -selectforeground $fore
+        .console tag configure white              -foreground white -background black  -font {courier 14 bold} -selectbackground $back -selectforeground $fore
+        .console tag configure yellowonblack      -foreground yellow -background black -font {courier 14 bold} -selectbackground $back -selectforeground $fore
+        .console tag configure yellow             -foreground yellow -background red -selectbackground blue
+        .console tag configure whiteonred         -foreground white -background red -font {courier 14 bold} -selectbackground black
+        .console tag configure rederror           -foreground red -background grey85 -font {courier 18 bold italic} -selectbackground black
+        .console tag configure red                -foreground red -font {courier 18} -selectbackground $back -selectforeground $fore
+        }
+    }
+    console eval [list ::tk::ConsoleOutput $dest $string]
+    }
+}
+proc {lw} {widget} {      # list a widget
+    set w [$widget configure]
+    foreach item $w {
+        set opt [lindex $item 0]
+        set val "---"
+        catch {set val [$widget cget $opt]}
+        set wid($opt) $val 
+    }   
+    #la wid
+    set names [lsort -dictionary [array names wid]]
+    set n [llength $names]
+    set n2 [expr ( $n/2 )]
+    set odd [expr ( $n % 2 )]
+    if { $odd } {
+        incr n2  ;# so this one is 1 more than half
+    }
+    if { $odd } {
+        for {set m 0;set m2 [expr ( $m+$n2 )]} {$m < $n2} {incr m;incr m2} {
+            if { $m == $n2-1 } {
+                set left [lindex $names $m]
+                set leftt [format {%-20s %-20s} $left $wid($left)]
+                puts "$leftt|"
+            } else {
+                set left [lindex $names $m]
+                set right [lindex $names $m2]
+                set leftt [format {%-20s %-20s} $left $wid($left)]
+#               cputs green "[string length $leftt] $left $wid($left)\n"
+                if { [string length $leftt] > 41 } {
+                    set leftt [format {%s %s} $left $wid($left)]
+                    set leftt [string range [format %-41s $leftt] 0 40]
+                }
+                set rightt [format {%-20s %-20s} $right $wid($right)]
+                puts "$leftt|[string trimright $rightt]"
+            }
+        }
+    } else {
+        for {set m 0;set m2 [expr ( $m+$n2 )]} {$m < $n2} {incr m;incr m2} {
+                set left [lindex $names $m]
+                set right [lindex $names $m2]
+                set leftt [format {%-20s %-20s} $left $wid($left)]
+#               cputs green "[string length $leftt] $left $wid($left)\n"
+                if { [string length $leftt] > 41 } {
+                    set leftt [format {%s %s} $left $wid($left)]
+                    set leftt [string range [format %-41s $leftt] 0 40]
+                }
+                set rightt [format {%-20s %-20s} $right $wid($right)]
+                puts "$leftt|[string trimright $rightt]"
+        }
+    }
+}
+proc wtree_node_puts {args} {
+    puts ""
+    puts ""
+    cputs green "$args\n"
+    lw $args
+#   catch {cputs green "[pack info $args]\n"}
+    if [catch {
+        set zzz [pack info $args]
+        cputs green "pack: $zzz\n" 
+    } err_code] {
+        if [catch {
+            set zzz [grid info $args]
+            if { $zzz ne "" } {
+                cputs green "grid: $zzz\n" 
+            }
+        } err_code] {
+            puts stderr "No grid or pack info to be found for $args"
+        }
+    }
+#   clipboard clear ; clipboard append $args
+}
+proc wtree_node_openclose {which} {
+    set nodes [.wtree_top.sw.t nodes root]
+    if { $which == "open" } {
+        foreach item $nodes {
+            .wtree_top.sw.t opentree $item
+        }
+    } else {
+        foreach item $nodes {
+            .wtree_top.sw.t closetree $item
+        }
+    }
+}
+proc wtree {{root .} {level 0}} {
+    set top .wtree_top
+    if {  $level == 0} {
+        package require BWidget
+        catch {
+            $top.sw.t delete [$top.sw.t nodes root]
+            destroy $top
+        }
+        toplevel $top
+        frame $top.f
+        button $top.f.b1 -text Open -command {vwdebug::wtree_node_openclose open}
+        button $top.f.b2 -text Close -command {vwdebug::wtree_node_openclose close}
+        pack $top.f  -side top -fill x
+        pack $top.f.b1 $top.f.b2 -side left -expand yes -fill both
+        ScrolledWindow $top.sw
+        pack $top.sw -fill both -expand 1 -side top
+        Tree $top.sw.t  -deltay 25 -deltax 25 -padx 5 -borderwidth 8 -linesfill orange -padx 5
+        #pack $top.sw.t
+        $top.sw setwidget $top.sw.t   ;# Make ScrolledWindow manage the Tree widget
+        update                ;# Process all UI events before moving on.
+        $top.sw.t bindText <1> +vwdebug::wtree_node_puts
+        $top.sw.t bindText <3> "+$top.sw.t opentree "
+        set ::wtree_queued_inserts {}
+        wm geom $top 466x326+52+52
+    }
+    set children [winfo children $root]
+    set class [winfo class $root]
+    set info ""
+    if       { $class == "Button" } {
+        set info [split [$root cget -text] \n]
+    } elseif { $class == "TLabelframe" } {
+        set info [split [$root cget -text] \n]
+    } elseif { $class == "TButton" } {
+        set info [split [$root cget -text] \n]
+    } elseif { $class == "TEntry" } {
+        set info "var: [$root cget -textvariable]"
+    } elseif { $class == "TCheckbutton" } {
+        set info [split [$root cget -text] \n]
+    } elseif { $class == "TButton2" } {
+        set info [split [$root cget -text] \n]
+    } else {
+    }
+    #cputs normal "[string repeat " |  " $level]"
+    #cputs green "$root"
+    #cputs red  [split $root .]
+    #cputs normal " - $class  $info\n"
+    set root [regsub -all : $root _]
+    set parts [split [string range $root 1 end] .]
+    if { $parts == "" } {
+        set parent root
+    } else {
+        set parent {}
+        foreach item [lrange $parts 0 end-1] {
+            append parent .$item
+        }
+    }
+    if { $parent == "" } {
+        set parent root
+    }
+    set cmd "$top.sw.t insert end \{$parent\}   \{$root\}       -font {courier 12} -text  \{$root - $class $info\}"
+    lappend ::wtree_queued_inserts $cmd
+    if { $children == "" } {
+        return $root
+    } else {
+        foreach child $children {
+            set tout [wtree $child [expr ( $level + 1 )]]
+        }
+    }
+    if { $level == 0 } {
+        foreach item $::wtree_queued_inserts {
+            eval $item
+        }
+    }
+}
+###########################################################
+## Procedure:  ltree
+proc ltree {{root .} {level 0}} {                   # list widget tree
+    set children [winfo children $root]
+    set class [winfo class $root]
+    set info ""
+    if       { $class == "Button" } {
+        set info [split [$root cget -text] \n]
+    } elseif { $class == "TLabelframe" } {
+        set info [split [$root cget -text] \n]
+    } elseif { $class == "TButton" } {
+        set info [split [$root cget -text] \n]
+    } elseif { $class == "TEntry" } {
+        set info "var: [$root cget -textvariable]"
+    } elseif { $class == "TCheckbutton" } {
+        set info [split [$root cget -text] \n]
+    } elseif { $class == "TButton2" } {
+        set info [split [$root cget -text] \n]
+    } else {
+    }
+    cputs normal "[string repeat " |  " $level]"
+    cputs green "$root"
+    cputs normal " - $class  $info\n"
+    if { $children == "" } {
+        return $root
+    } else {
+        foreach child $children {
+            set tout [ltree $child [expr ( $level + 1 )]]
+        }
+    }   
+}
 
 } ;# end namespace vwdebug
 if { $::___zz___(tooltipsbuiltin) } {
@@ -3341,4 +3552,25 @@ proc ::tooltip::enableTag {w tag} {
 }
 
 package provide tooltip 1.4.6
+}
+if { 0 } { ;# little standalone tester even worked in 8.7 nightly
+    lappend auto_path C:/tclf/tclpkgs
+    if [catch {
+        console show
+    } err_code] {
+        if [catch {
+            source console.tcl
+        } err_code] {
+            puts stderr $err_code
+        }
+    }
+    proc tester {args} {
+        puts hi1
+        puts hi2
+        puts hi3
+        puts hi4
+        return
+    }
+    instrument+ tester
+    tester
 }
