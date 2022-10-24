@@ -7,15 +7,15 @@ set ::___zz___(bp_messages_default) 1 ;# this sets the no bp messages checkbox t
 set ::___zz___(console_hack) 0      ;# if 1, installs a console hack to allow an empty <cr> line on console, repeats last command (handy for go+)
 set ::___zz___(tooltips) 3000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
 set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file if no tooltips package available, e.g. on linux w/o tcllib
-set ::___zz___(use_ttk) 0           ;# if 1, the windows use the themed ttk
+set ::___zz___(use_ttk) 0           ;# if 1, some windows use the themed ttk, but not the label or entries since we use -bg
 set ::___zz___(max_size) 1000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
-set ::___zz___(max_array_size) 500  ;# the maximum size of a array
+set ::___zz___(max_array_size) 500  ;# the maximum size of a array in indices
 set ::___zz___(max_history) 50      ;# the maximum number of commands saved in the 2 command histories (command and uplevel)
 set ::___zz___(skip_modulo) 100     ;# when using a large skip count on go+ this is the number of steps between reporting remaining messages
 set ::___zz___(arrow) "\u27F6"      ;# Unicode arrow, can be 2 char positions also, can cause a wobble of the line number, if you like that
 set ::___zz___(tabsize) 4           ;# code window tabsize
-set ::___zz___(fontsize) 12         ;# data window font size (rest of window only works correctly with a value of 12 - for now)
-set ::___zz___(minupdate) 1         ;# experimental
+set ::___zz___(fontsize) 12         ;# data window font size 
+set ::___zz___(minupdate) 1         ;# this causes an update of only the arrow, otherwise redraws code on each step, can't be on to show instrumentation
 set ::___zz___(deadman) 100         ;# when all bp's are off, we can appear to freeze if there's a lot of work to do, so every so often we update
 set ::___zz___(deadman2) -1         ;# decr this guy until he reaches 0, then set to deadman, first thing we check in bp and lbp
 
@@ -34,10 +34,10 @@ set ::___zz___(yellowx) black       ;# but need to make text dark to read it
 #set ::___zz___(bwidget) 0 ;# uncomment this if BWidgets are not wanted, leave undefined and it will try to use it (do not set to 1 here)
 catch {history keep 100}            ;# keep console history more than just 20, can comment this out, it's for debugging the debugger
 
-interp alias {} vvv {} vw+ ;# shorthands since we might be typing these, optional
-interp alias {} ggg {} go+
-interp alias {} uuu {} util+
-interp alias {} iii {} instrument+
+#interp alias {} v {} vw+ ;# shorthands since we might be typing these, optional, now commented out to avoid colisions
+#interp alias {} g {} go+
+#interp alias {} u {} util+
+#interp alias {} i {} instrument+
 
 # - ------------------------------
 # C O N N F I G U R A T I O N end
@@ -3570,13 +3570,28 @@ if { 0 } { ;# little standalone tester even worked in 8.7 nightly
             puts stderr $err_code
         }
     }
-    proc tester {args} {
+    proc tester1 {args} {
+        for {set n 0} {$n < 100000 } {incr n} {
+            set toobig($n) $n   
+        }
         puts hi1
         puts hi2
         puts hi3
         puts hi4
         return
     }
-    instrument+ tester
-    tester
+    proc tester2 {args} {
+        for {set n 0} {$n < 100000 } {incr n} {
+            set toobig($n) $n   
+        }
+        puts hi1
+        puts hi2
+        puts hi3
+        puts hi4
+        return
+    }
+    instrument+ tester1
+    instrument+ tester2
+    tester1
+    tester2
 }
