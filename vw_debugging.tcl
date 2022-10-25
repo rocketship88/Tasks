@@ -13,6 +13,7 @@ set ::___zz___(max_array_size) 500  ;# the maximum size of a array in indices
 set ::___zz___(max_history) 50      ;# the maximum number of commands saved in the 2 command histories (command and uplevel)
 set ::___zz___(skip_modulo) 100     ;# when using a large skip count on go+ this is the number of steps between reporting remaining messages
 set ::___zz___(arrow) "\u27F6"      ;# Unicode arrow, can be 2 char positions also, can cause a wobble of the line number, if you like that
+set ::___zz___(carrow) "\u2727"     ;# Unicode coverage arrow, or whatever it is 
 set ::___zz___(tabsize) 4           ;# code window tabsize
 set ::___zz___(fontsize) 12         ;# data window font size 
 set ::___zz___(minupdate) 1         ;# this causes an update of only the arrow, otherwise redraws code on each step, can't be on to show instrumentation
@@ -2339,9 +2340,11 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         set iline [expr {   $line +1  }]  
         if { $pline > 0 } {
             if { [.lbp_console.cframe.text get $pline.0] eq  $::___zz___(arrow)} {
-                if { $::___zz___(coverage) == 0 } {
                 .lbp_console.cframe.text delete $pline.0 
+                if { $::___zz___(coverage) == 0 } {
                 .lbp_console.cframe.text insert $pline.0 "  " 
+                } else {
+                    .lbp_console.cframe.text insert $pline.0 "$::___zz___(carrow) " ;# "||" 
                 }
             } else {
                 .lbp_console.cframe.text delete 1.0 end
@@ -3571,27 +3574,57 @@ if { 0 } { ;# little standalone tester even worked in 8.7 nightly
         }
     }
     proc tester1 {args} {
-        for {set n 0} {$n < 100000 } {incr n} {
+        for {set n 0} {$n < 10 } {incr n} {
             set toobig($n) $n   
+            set foo bar
+            set foo bar 
         }
         puts hi1
         puts hi2
         puts hi3
         puts hi4
+        if { 1 } {
+            set one 1
+        } else {
+            set one 0   
+        }
+        set foo foo
+        set bar bar
         return
     }
     proc tester2 {args} {
-        for {set n 0} {$n < 100000 } {incr n} {
-            set toobig($n) $n   
-        }
         puts hi1
         puts hi2
         puts hi3
         puts hi4
+        for {set n 0} {$n < 10 } {incr n} {
+            set toobig($n) $n
+            set foo bar
+            set foo bar 
+        }
+        if { 1 } {
+            set one 1
+        } else {
+            set one 0   
+        }
+        set foo foo
+        set bar bar
         return
     }
     instrument+ tester1
     instrument+ tester2
+    tester1
+    tester2
+    tester1
+    tester2
+    tester1
+    tester2
+    tester1
+    tester2
+    tester1
+    tester2
+    tester1
+    tester2
     tester1
     tester2
 }
