@@ -2045,32 +2045,35 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 
         label  .lbp_console.bframe.b1    -text "Menu" -relief raised
         
+        set box1 "  "
+        set boxc "\u25A1 "
+        set boxr "\u25A3 "
         # Create a menu
         set m [menu .lbp_console.menu1 -tearoff 1 -tearoffcommand [list $::___zz___(util+) tearoff]]
-        $m add command  -label      "util+ grid       - rearange windows"       -command "[list $::___zz___(util+) grid];raise .lbp_console"    -font TkFixedFont
-        $m add checkbutton -label   "move group       - if checked"             -variable ::___zz___(gangcb)    -indicatoron 1  -font TkFixedFont   -command "[list $::___zz___(util+) gridck];raise .lbp_console"
+        $m add command      -label     "${box1}util+ grid       - rearange windows"           -command "[list $::___zz___(util+) grid];raise .lbp_console" -font TkFixedFont
+        $m add checkbutton  -label     "${boxc}move group       - with first window"           -variable ::___zz___(gangcb)                -indicatoron 1  -font TkFixedFont   -command "[list $::___zz___(util+) gridck];raise .lbp_console"
         $m add separator                    
-        $m add command  -label      "util+ clean      - close all  data windows"    -command [list $::___zz___(util+) clean]                -font TkFixedFont
-        $m add command  -label      "util+ clean code - close code data windows"    -command [list $::___zz___(util+) clean code]           -font TkFixedFont
-        $m add command  -label      "util+ manual     - manual geom all"    -command [list $::___zz___(util+) manual]               -font TkFixedFont
+        $m add command      -label     "${box1}util+ clean      - close all  data windows"    -command [list $::___zz___(util+) clean]                    -font TkFixedFont
+        $m add command      -label     "${box1}util+ clean code - close code data windows"    -command [list $::___zz___(util+) clean code]               -font TkFixedFont
+        $m add command      -label     "${box1}util+ manual     - manual geom all"            -command [list $::___zz___(util+) manual]                   -font TkFixedFont
         $m add separator 
-        $m add command  -label      "No bp Msgs       - check all"                  -command [list $::___zz___(util+) no-bp-messages-all]           -font TkFixedFont
-        $m add checkbutton -label   "No bp Msgs (def) - if checked"     -variable ::___zz___(bp_messages_default)   -indicatoron 1  -font TkFixedFont   
-        $m add checkbutton -label   "Show instrument+ - if checked"     -variable ::___zz___(showinstr) -indicatoron 1  -font TkFixedFont   -command [list $::___zz___(util+) showlines %W %s %d]
+        $m add command      -label     "${box1}No bp Msgs       - check all"                  -command [list $::___zz___(util+) no-bp-messages-all]       -font TkFixedFont
+        $m add checkbutton  -label     "${boxc}No bp Msgs       - sets default value"         -variable ::___zz___(bp_messages_default)   -indicatoron 1  -font TkFixedFont   
+        $m add checkbutton  -label     "${boxc}Show instrument+ - turns off min update"       -variable ::___zz___(showinstr)             -indicatoron 1  -font TkFixedFont   -command [list $::___zz___(util+) showlines %W %s %d]
         $m add separator                    
-        $m add command  -label      "Clear code window"                 -command {.lbp_console.cframe.text delete 1.0 end}              -font TkFixedFont
-        $m add command  -label      "Bottom of code window"             -command {.lbp_console.cframe.text see end; .lbp_console.cframe.text mark set insert end}   -font TkFixedFont
-        $m add checkbutton -label   "minimal update    - required for coverage"             -variable  ::___zz___(minupdate)    -indicatoron 1  -font TkFixedFont   -command {if    {$::___zz___(minupdate) == 0    } {  set ::___zz___(coverage)  0     }}
-        $m add checkbutton -label   "coverage          - don't erase arrows"    -command {if    {$::___zz___(coverage) == 0 } { .lbp_console.cframe.text delete 1.0 end    }}   -variable  ::___zz___(coverage) -indicatoron 1  -font TkFixedFont   
+        $m add command      -label     "${box1}Clear code window"                             -command {.lbp_console.cframe.text delete 1.0 end}          -font TkFixedFont
+        $m add command      -label     "${box1}Bottom of code window"                         -command {.lbp_console.cframe.text see end; .lbp_console.cframe.text mark set insert end}   -font TkFixedFont
+        $m add checkbutton  -label     "${boxc}minimal update    - required for coverage"     -variable  ::___zz___(minupdate)    -indicatoron 1  -font TkFixedFont   -command {if    {$::___zz___(minupdate) == 0    } {  set ::___zz___(coverage)  0     }}
+        $m add checkbutton  -label     "${boxc}coverage          - show reached statements"   -command {if    {$::___zz___(coverage) == 0 } { .lbp_console.cframe.text delete 1.0 end    }}   -variable  ::___zz___(coverage) -indicatoron 1  -font TkFixedFont   
         $m add separator                    
-        $m add command  -label      "List Call Frames - all"            -command [list $::___zz___(util+) frames-callback]              -font TkFixedFont
-        $m add command  -label      "List Call Frames - just cmds"      -command [list $::___zz___(util+) frames-callback2]             -font TkFixedFont
+        $m add command      -label     "${box1}List Call Frames  - all"                       -command [list $::___zz___(util+) frames-callback]          -font TkFixedFont
+        $m add command      -label     "${box1}List Call Frames  - just commands"             -command [list $::___zz___(util+) frames-callback2]         -font TkFixedFont
         $m add separator                    
-        $m add radiobutton  -label      "Small  Data Window Font (close to apply)"      -variable ::___zz___(fontsize)  -value 8        -font TkFixedFont
-        $m add radiobutton  -label      "Medium Data Window Font"       -variable ::___zz___(fontsize)  -value 10       -font TkFixedFont
-        $m add radiobutton  -label      "Larger Data Window Font"       -variable ::___zz___(fontsize)  -value 12       -font TkFixedFont
+        $m add radiobutton  -label     "${boxr}Small  Data Window Font (close to apply)"      -variable ::___zz___(fontsize)  -value 8        -font TkFixedFont
+        $m add radiobutton  -label     "${boxr}Medium Data Window Font"                       -variable ::___zz___(fontsize)  -value 10       -font TkFixedFont
+        $m add radiobutton  -label     "${boxr}Larger Data Window Font"                       -variable ::___zz___(fontsize)  -value 12       -font TkFixedFont
         $m add separator                    
-        $m add command      -label      "Widget Tree Browser"           -command {vwdebug::wtree}                       -font TkFixedFont
+        $m add command      -label     "${box1}Widget Tree Browser"                           -command {vwdebug::wtree}                       -font TkFixedFont
         
         bind .lbp_console.bframe.b1 <1> {tk_popup .lbp_console.menu1 %X %Y}
     
