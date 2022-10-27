@@ -11,6 +11,7 @@ set ::___zz___(use_ttk) 0           ;# if 1, some windows use the themed ttk, bu
 set ::___zz___(max_size) 1000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
 set ::___zz___(max_array_size) 500  ;# the maximum size of a array in indices
 set ::___zz___(max_history) 50      ;# the maximum number of commands saved in the 2 command histories (command and uplevel)
+set ::___zz___(max_frames) -20      ;# the maximum number nested procedure calls tracked, must be negative
 set ::___zz___(skip_modulo) 100     ;# when using a large skip count on go+ this is the number of steps between reporting remaining messages
 set ::___zz___(arrow) "\u27F6"      ;# Unicode arrow, can be 2 char positions also, can cause a wobble of the line number, if you like that
 set ::___zz___(carrow) "\u2727"     ;# Unicode coverage arrow, or whatever it is 
@@ -19,6 +20,8 @@ set ::___zz___(fontsize) 12         ;# data window font size
 set ::___zz___(minupdate) 1         ;# this causes an update of only the arrow, otherwise redraws code on each step, can't be on to show instrumentation
 set ::___zz___(deadman) 100         ;# when all bp's are off, we can appear to freeze if there's a lot of work to do, so every so often we update
 set ::___zz___(deadman2) -1         ;# decr this guy until he reaches 0, then set to deadman, first thing we check in bp and lbp
+set ::___zz___(procnolist) {tclLog history unknown pkg_mkIndex parray  tclPkgUnknown tclPkgSetup}  ;# list of proc's not to list for possible instrumentation, can lappend to this
+set ::___zz___(procnolistre) {tcl_.*|tk_.*|auto_*|.*\+|\..*}  ;# a regular expr that if not empty will be used to filter the procs to instrument set
 
 # choose one set or the other of the below, must be defined to something however
 #set ::___zz___(black) black        ;# the code window colors, black is the foreground, white the background, yellow backgound when proc done
@@ -993,7 +996,7 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
                         if { $::___zz___(bp) == 102  } {
                             puts "------------- -- ---------------"
                         }
-                        for {set m -10} {$m <= 0} {incr m} {
+                        for {set m $::___zz___(max_frames)} {$m <= 0} {incr m} {
                             if [catch {
                                 set up      [ info frame $m]
 #                               set vars    [uplevel [expr {(   0-$m   )}] info vars]
@@ -2060,6 +2063,8 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         $m add command      -label     "${box1}No bp Msgs       - check all"                  -command [list $::___zz___(util+) no-bp-messages-all]       -font TkFixedFont
         $m add checkbutton  -label     "${boxc}No bp Msgs       - sets default value"         -variable ::___zz___(bp_messages_default)   -indicatoron 1  -font TkFixedFont   
         $m add checkbutton  -label     "${boxc}Show instrument+ - turns off min update"       -variable ::___zz___(showinstr)             -indicatoron 1  -font TkFixedFont   -command [list $::___zz___(util+) showlines %W %s %d]
+        $m add command      -label     "${box1}List Instrumented  "                           -command {vwdebug::listinstr}                       -font TkFixedFont
+        $m add command      -label     "${box1}Choose Procs to Instrument or -revert "        -command {vwdebug::chooseprocs}                     -font TkFixedFont
         $m add separator                    
         $m add command      -label     "${box1}Clear code window"                             -command {.lbp_console.cframe.text delete 1.0 end}          -font TkFixedFont
         $m add command      -label     "${box1}Bottom of code window"                         -command {.lbp_console.cframe.text see end; .lbp_console.cframe.text mark set insert end}   -font TkFixedFont
@@ -2456,6 +2461,12 @@ proc instrument+ {procedure args} {
         set no_warn 1
         set args [lreplace $args $nw $nw]
     }
+    if { $procedure eq "-pick" } {
+        tailcall vwdebug::chooseprocs {*}$args
+    }
+    if { $procedure eq "-list" } {
+        tailcall vwdebug::listinstr {*}$args
+    }
 # -------------------------------------------------------- instrument class methods, by faking it, quite a hack, but hey...
     if { $procedure eq "-class" } { ;# instr -class class method
     
@@ -2483,7 +2494,9 @@ proc instrument+ {procedure args} {
         } err_code] {
             puts stderr $err_code 
         }
-        
+        if { [info exist ::___zz___(originalm,$themethod)] } {
+            error "Method \"$themethod\" is already instrumented (cannot -revert)"
+        }
         set def [info class definition $theclass $themethod]
         set arglist [lindex $def 0]
         set mcode [lindex $def 1]
@@ -2506,6 +2519,7 @@ proc instrument+ {procedure args} {
         rename ${theclass}__z__$themethod {} ;# get rid of the temporary proc we built so we could instrument it
         append result "oo::define $theclass export $themethod\n"
         eval $result        
+        set ::___zz___(originalm,$themethod) $theclass      
         return "" ;# there is no -revert for methods, if the result is eval'd not a problem (since we used to require that)
     }
 
@@ -2527,7 +2541,7 @@ proc instrument+ {procedure args} {
     }
     set procedure  [string trimleft $procedure ":"]
     if { $procedure in $frames_trm } {
-        error "cannot change \"$procedure \"when it's in the active call frames: \{$frames_trm\}"
+        error "cannot change \"$procedure\" when it's in the active call frames: \{$frames_trm\}"
     }
     if { [lsearch "-revert" $args] >= 0 } { 
         if { [info exists  ::___zz___(original,$procedure)] } {
@@ -2759,8 +2773,19 @@ if { 00 } {
 
 namespace eval vwdebug {
     variable cash
+    variable the_choicex
     set cash(0) "inited"
-    
+    proc listinstr {args} {
+        foreach item [array names ::___zz___ original,*] {
+            set pr [lindex [split $item , ] end ]
+            puts "Instrumented procedure = $pr "    
+        }
+        foreach item [array names ::___zz___ originalm,*] {
+            set mt [lindex [split $item , ] end ]
+            set c $::___zz___($item)
+            puts "Instrumented method    = [format %-15s $mt] -class $c"    
+        }
+    }
     proc do_destroy {kind args} {
         variable cash
         if { $::___zz___(cache) } {
@@ -2832,7 +2857,7 @@ namespace eval vwdebug {
     }
     proc get_frames {} {
         set result {}
-        for {set m 0} {$m > -10} {incr m -1} {
+        for {set m 0} {$m > $::___zz___(max_frames)} {incr m -1} {
             if [catch {
                 set up      [ info frame $m]
                 if { [dict get $up type ] eq "proc"} {
@@ -3069,6 +3094,112 @@ proc ltree {{root .} {level 0}} {                   # list widget tree
             set tout [ltree $child [expr ( $level + 1 )]]
         }
     }   
+}
+proc choose {w choices {start 0} {max 20} {kind ?}} {
+    variable the_choicex
+    unset -nocomplain the_choicex
+    catch {destroy .p}
+    menu .p -tearoff 0
+    update ; # <===========================================================
+    .p  add command -label "-none- [string range $kind 6 end]" -command "set ::vwdebug::the_choicex {-none-} " -font {consolas-bold 13}
+    set n $start
+    foreach choice  [lrange [lsort -dictionary $choices]  $start  [expr {   $start+$max-1   }]] {
+        if { $choice eq "" } {
+            continue
+        }
+        .p  add command -label "[format %2s [incr n]] $choice" -command "set ::vwdebug::the_choicex $choice " -font {consolas 11}
+    }
+    if { $start+$max < [llength $choices]} {
+        .p  add command -label "-next-" -command "set ::vwdebug::the_choicex {-next-} " -font {consolas-bold 13}
+    }
+    set coords [lrange [split [wm geom .] +] 1 end]
+    set zzz [tk_popup .p {*}$coords 1]
+#                                                                                   update
+    if {! [info exist ::vwdebug::the_choicex] } {
+        vwait  ::vwdebug::the_choicex
+    }
+    return $::vwdebug::the_choicex
+}
+proc getchoice {w choices kind} {
+    variable the_choicex
+    if { [llength $choices] == 1 } {
+        set ::vwdebug::the_choicex $choices
+        return $choices
+    }
+    set next 0
+    set max 20
+    while { 1 } {
+        choose $w $choices $next $max $kind
+        wait 100
+        if { ![info exist ::vwdebug::the_choicex] } {
+            set ::vwdebug::the_choicex "-none-"
+        }
+        if       { $::vwdebug::the_choicex eq "-none-" } {
+            set ::vwdebug::the_choicex ""
+            break
+        } elseif { $::vwdebug::the_choicex eq "-next-" } {
+            incr next $max
+            if { $next > [llength $choices] } {
+                set ::vwdebug::the_choicex ""
+                break
+            }
+            continue
+        } else {
+            break
+        }
+    }
+    return $::vwdebug::the_choicex
+}
+proc wait { ms } {
+    set uniq [incr ::__sleep__tmp__counter]
+    set ::__sleep__tmp__$uniq 0
+    after $ms set ::__sleep__tmp__$uniq 1
+    vwait ::__sleep__tmp__$uniq
+    unset ::__sleep__tmp__$uniq
+}
+proc chooseprocs {args} {
+    set procs {}
+    set prs [info procs ::*]
+    set skips {}
+    foreach skip $::___zz___(procnolist) {
+        lappend skips   [string trimleft $skip ":"]
+    }
+    foreach pr0  $prs {
+        set pr [string trimleft $pr0 ":"]
+        if { [string trimleft $pr ":"] in $skips  } {
+            continue
+        }
+        if { [regexp $::___zz___(procnolistre) $pr] } {
+            continue
+        }
+        if { $args ne "" } {
+            if {! [string match {*}$args $pr] } {
+                continue
+            }
+        }
+        if { [info exist ::___zz___(original,$pr)] } {
+            lappend procs "+$::___zz___(arrow)$pr"
+        } else {
+            lappend procs "$pr"
+        }
+    }
+#   ll [lsort -dictionary $procs ]
+    set zzz [getchoice . $procs "?"]
+    if { [string index $zzz 0] eq "+" } {
+        set zzz [string range $zzz 2 end]
+    }
+    if { $zzz ne "" } {
+        if [catch {
+            instrument+ $zzz
+            puts stderr "instrumented+ $zzz"
+        } err_code] {
+            if { [string match {*is already instrumented,*} $err_code] } {
+                instrument+ $zzz -revert
+            } else {
+                puts stderr "error: $err_code"
+            }
+        }
+    }
 }
 
 } ;# end namespace vwdebug
