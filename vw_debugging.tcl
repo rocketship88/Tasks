@@ -1057,7 +1057,11 @@ proc $::___zz___(go+) {{skip -1} {window ""}} {
         set ::___zz___(goto) [expr {(   0 - $skip   )}]
         set skip -1
         set curr [lindex [vwdebug::get_frames] 0 ]
-        set ::___zz___(go-window) $curr ;# this will be the target proc of a go to line
+        if { $window ne "" } {
+            set ::___zz___(go-window) ::[string trimleft $window ":"] ;# this will be the target proc of a go to line
+        } else {
+            set ::___zz___(go-window) $curr ;# this will be the target proc of a go to line
+        }
     }
     if { $skip > 0 } {
         set ::___zz___(skips) [expr {(   $skip - 1   )}]
@@ -3700,6 +3704,10 @@ proc ::tooltip::enableTag {w tag} {
 package provide tooltip 1.4.6
 }
 if { 0 } { ;# little standalone tester even worked in 8.7 nightly
+interp alias {} v {} vw+ ;# shorthands since we might be typing these, optional, now commented out to avoid colisions
+interp alias {} g {} go+
+interp alias {} u {} util+
+interp alias {} i {} instrument+
     lappend auto_path C:/tclf/tclpkgs
     if [catch {
         console show
