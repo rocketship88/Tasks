@@ -5,7 +5,7 @@ set ::___zz___(proc_wid) 5          ;# the min number of lines to show BELOW (ju
 set ::___zz___(auto_list_default) 1 ;# this sets the auto list checkbox to this value at first creation of checkbox
 set ::___zz___(bp_messages_default) 1 ;# this sets the no bp messages checkbox to this value at first creation of checkbox
 set ::___zz___(console_hack) 0      ;# if 1, installs a console hack to allow an empty <cr> line on console, repeats last command (handy for go+)
-set ::___zz___(tooltips) 3000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
+set ::___zz___(tooltips) 1000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
 set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file if no tooltips package available, e.g. on linux w/o tcllib
 set ::___zz___(use_ttk) 0           ;# if 1, some windows use the themed ttk, but not the label or entries since we use -bg
 set ::___zz___(max_size) 1000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
@@ -2041,16 +2041,29 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         frame .lbp_console.bframe ;# frame with buttons
         frame .lbp_console.cframe ;# frame with program text
 
+        if { $::___zz___(use_ttk) } {
+            set ttk "ttk::"
+            set opts1 {}
+            set opts2 {}
+            set opts3 {-font {courier 12}} ;# entries
+            set opts4 {}
+        } else {
+            set ttk ""
+            set opts1 {-relief raised}
+            set opts2 {-font {courier 10}}
+            set opts3 {-font {courier 12}}
+            set opts4 {-relief raised -bd 0} ;# labels
+        }
 
         
         text  .lbp_console.cframe.text -height 25 -wrap none -font $font -tabs "[expr {$::___zz___(tabsize)* [font measure $font 0]}] left" -tabstyle wordprocessor -width 24 -yscrollcommand [list .lbp_console.cframe.y set] -fg $::___zz___(black) -bg  $::___zz___(white)
         scrollbar .lbp_console.cframe.y -orient vertical -command [list  .lbp_console.cframe.text yview]
         
-        button .lbp_console.bframe.b0    -text "EXIT"    -command {exit} ;# -image $image ;#
+        ${ttk}button .lbp_console.bframe.b0    -text "EXIT"      -command {exit} ;# -image $image ;#
 #       button .lbp_console.bframe.b1    -text "Clear"   -command {.lbp_console.cframe.text delete 1.0 end} ;# -image $image ;#
 
 
-        label  .lbp_console.bframe.b1    -text "Menu" -relief raised
+        ${ttk}label  .lbp_console.bframe.b1  -text "Menu"  {*}$opts1
         
         set box1 "  "
         set boxc "\u25A1 "
@@ -2092,24 +2105,24 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         
         
 #       button .lbp_console.bframe.b2    -text "Bottom"  -command {.lbp_console.cframe.text see end; .lbp_console.cframe.text mark set insert end} ;# -image $image ;#
-        checkbutton .lbp_console.bframe.b2a    -text "lock" -variable ::___zz___(lbp-lock) -relief raised ;# -image $image ;# -command $tcmd 
+        ${ttk}checkbutton .lbp_console.bframe.b2a    -text "lock" -variable ::___zz___(lbp-lock)  ;# -image $image ;# -command $tcmd 
 
-        button .lbp_console.bframe.b3    -text "Font --" -command [list $::___zz___(util+) fontsize .lbp_console.cframe.text -1] ;# -image $image ;#
-        button .lbp_console.bframe.b4    -text "Font ++" -command [list $::___zz___(util+) fontsize .lbp_console.cframe.text 1] ;# -image $image ;#
-        button .lbp_console.bframe.b5    -text "Console" -command {catch {console show}} ;# -image $image ;#
-        button .lbp_console.bframe.b6    -text "Stop"    -command {set ::___zz___(skips) 1;set ___zz___(goto) -1} ;# -image $image ;#
-        button .lbp_console.bframe.b7    -text "Go/Step"     -command [list $::___zz___(go+)]  ;# -image $image ;#
-        button .lbp_console.bframe.b9    -text "Run"     -command [list $::___zz___(go+) -999999]  ;# -image $image ;#
+        ${ttk}button .lbp_console.bframe.b3    -text "Font --" -command [list $::___zz___(util+) fontsize .lbp_console.cframe.text -1] ;# -image $image ;#
+        ${ttk}button .lbp_console.bframe.b4    -text "Font ++" -command [list $::___zz___(util+) fontsize .lbp_console.cframe.text 1] ;# -image $image ;#
+        ${ttk}button .lbp_console.bframe.b5    -text "Console" -command {catch {console show}} ;# -image $image ;#
+        ${ttk}button .lbp_console.bframe.b6    -text "Stop"      -command {set ::___zz___(skips) 1;set ___zz___(goto) -1} ;# -image $image ;#
+        ${ttk}button .lbp_console.bframe.b7    -text "Go/Step"   -command [list $::___zz___(go+)]  ;# -image $image ;#
+        ${ttk}button .lbp_console.bframe.b9    -text "Run"   -command [list $::___zz___(go+) -999999]  ;# -image $image ;#
         
         set tcmd "wm attributes .lbp_console -topmost \$::___zz___(lbp-ontop)"
-        checkbutton .lbp_console.bframe.b8    -text "On Top" -variable ::___zz___(lbp-ontop) -command $tcmd  -relief raised ;# -image $image ;#
+        ${ttk}checkbutton .lbp_console.bframe.b8    -text "On Top" -variable ::___zz___(lbp-ontop) -command $tcmd   ;# -image $image ;#
         
         set ::___zz___(entry1) ""
         set ::___zz___(entry3) ""
 
         frame .lbp_console.xframe ;# frame with command execute entry (I give up trying to get the buttons/entry to line up with the default font, so use a fixed size one)
-        button .lbp_console.xframe.lab3a -text "Command:" -font {courier 10} -command {set ::___zz___(entry1) "";focus .lbp_console.xframe.entry } ;#-font {courier 14}
-        entry .lbp_console.xframe.entry -text "entry" -textvariable ::___zz___(entry1) -font {courier 14} ; #set ::___zz___(entry1) "set args"
+        ${ttk}button .lbp_console.xframe.lab3a -text "Command:" {*}$opts2 -command {set ::___zz___(entry1) "";focus .lbp_console.xframe.entry } ;#-font {courier 14}
+        ${ttk}entry .lbp_console.xframe.entry -text "entry" -textvariable ::___zz___(entry1) {*}$opts3 ; #set ::___zz___(entry1) "set args"
         bind  .lbp_console.xframe.entry <Key-Return> [list $::___zz___(util+) enter-callback 2 %W %K]
         bind  .lbp_console.xframe.entry <Key-KP_Enter> [list $::___zz___(util+) enter-callback 2 %W %K]
         bind  .lbp_console.xframe.entry <Key-Up> [list $::___zz___(util+) enter-callback 2 %W %K]
@@ -2119,10 +2132,10 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         bind .lbp_console.xframe.entry <5>          [list $::___zz___(util+) enter-callback 2 %W -1]
         
         frame       .lbp_console.uframe ;# frame with uplevel command execute entry
-        button      .lbp_console.uframe.lab3c   -text "Uplevel:"    -font {courier 10} -command {set ::___zz___(entry3) ""; focus .lbp_console.uframe.entry} ;#-font {courier 14} 
-        entry       .lbp_console.uframe.entry   -text "entry"       -textvariable ::___zz___(entry3) -font {courier 14}
+        ${ttk}button        .lbp_console.uframe.lab3c   -text "Uplevel:"    {*}$opts2 -command {set ::___zz___(entry3) ""; focus .lbp_console.uframe.entry} ;#-font {courier 14} 
+        ${ttk}entry         .lbp_console.uframe.entry   -text "entry"       -textvariable ::___zz___(entry3) {*}$opts3
 
-        label       .lbp_console.uframe.label   -text "Delay" -relief raised -bd 0
+        ${ttk}label     .lbp_console.uframe.label   -text "Delay" {*}$opts4
 
  #      ------------------------------------------------- mouse wheel windows and linux
 
@@ -2180,7 +2193,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                                                                                                                     
  #      -------------------------------------------------
             
-        label       .lbp_console.xframe.label   -text "Precision" -relief raised -bd 0
+        ${ttk}label     .lbp_console.xframe.label   -text "Precision"  {*}$opts4
                                                             
                                                                                                                     
  #      -------------------------------------------------
@@ -2221,7 +2234,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                                                                                                                     
  #      -------------------------------------------------
             
-        label       .lbp_console.xframe.labell  -text "Show Lines" -relief raised -bd 0
+        ${ttk}label     .lbp_console.xframe.labell  -text "Show Lines"  {*}$opts4
 #       set ::___zz___(proc_wid) 12
         
         
@@ -3708,6 +3721,18 @@ interp alias {} v {} vw+ ;# shorthands since we might be typing these, optional,
 interp alias {} g {} go+
 interp alias {} u {} util+
 interp alias {} i {} instrument+
+set ::___zz___(max_size) 1000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it
+set ::___zz___(max_array_size) 500  ;# the maximum size of a array in indices
+lappend ::___zz___(procnolist) tclLog myapp-shift wtree wtree_:_node_openclose history \
+                              cputs la lg ll lp ls lt lw hh ltree unknown pkg_mkIndex parray wtree_:_node_puts tclPkgUnknown tclPkgSetup        ;# list of proc's not to list for possible instrumentation, can lappend to this
+
+set ::___zz___(black) white        ;# the code window colors, black is the foreground, white the background, yellow backgound when proc done
+set ::___zz___(white) grey30        ;#
+set ::___zz___(yellow) {#ffffc0}   ;# background when proc done
+set ::___zz___(yellowx) black      ;# foreground when proc done
+set ::___zz___(use_ttk) 1           ;# if 1, some windows use the themed ttk, but not the label or entries since we use -bg
+#ttk::themes
+ttk::style theme use alt
     lappend auto_path C:/tclf/tclpkgs
     if [catch {
         console show
