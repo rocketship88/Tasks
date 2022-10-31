@@ -2672,14 +2672,14 @@ proc instrument+ {procedure args} {
                 set zzz [regexp {^(\w+)[ \t]*} $cmdname -> cmdname]
                 
                 incr skipit -2  
-				if { $cmdname in {if while} } {
-					lassign $cmd cname cond body
-					if { [string match "*\n*" $cond] } {
-					} else {
-						set skipit 0
-					}
-				}
-				if { $cmdname in {for foreach proc} || $zzz == 0} {
+                if { $cmdname in {if while} } {
+                    lassign $cmd cname cond body
+                    if { [string match "*\n*" $cond] } {
+                    } else {
+                        set skipit 0
+                    }
+                }
+                if { $cmdname in {for foreach proc} || $zzz == 0} {
                     set skipit 0
                 }
             }
@@ -2727,8 +2727,8 @@ proc instrument+ {procedure args} {
             }
             set keys [list if foreach proc for while  $rb ]
             if {$cmd  in $keys } {
-                if { [string index $tline end] eq $lbracket} {
-                    set ok 2 ;# some sort of control command ending in a open brace
+                if { [string index $tline end] eq $lbracket && $skipit == 0} {
+                    set ok 2 ;# some sort of control command ending in a open brace, but only if we're not already skipping
                 }
             }
         }
@@ -3764,6 +3764,11 @@ ttk::style theme use alt
             set one 1
         } else {
             set one 0   
+        }
+        if {
+        1 == 1
+        } {
+            set foo foo
         }
         set foo foo
         set bar bar
