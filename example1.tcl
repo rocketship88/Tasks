@@ -15,20 +15,20 @@
 #   to step or run either. it will resize and position one time. You can also play with the delay 
 #   controls and watch the task_monitor.
 #
-#   to also instrument the fibonaci proc itself, enter in a command entry:  eval [i fibonacci]
+#   to also instrument the fibonaci proc itself, enter in a command entry:  instrument+ fibonacci
 #   to stop instrumenting it enter:   i fibonacci -revert   (with or without the eval is ok)   
 #
-
+                             ########## important #################
 #####################################################################################
-#   First, setup the paths below in the two places, and also the Tasks module as well.
+# To use, modify the paths below in the three places for both the debugger and tasks
 #####################################################################################
 
 
-    source "D:/stuff/vw_debugging.tcl"      ;# we load the debugger 3 times, once here and in each task
+    source "D:/stuff/vw_debugging.tcl"      ;# we load the debugger 3 times, once here and in each task     <<<<<<<<<<<< change this
     set ::___zz___(bp_messages_default)  0  ;# we can change the config parameters w/o modifying the file
 
     
-    tcl::tm::path add d:/stuff              ;# set to path where to find tasks (say [pwd] if in local)
+    tcl::tm::path add d:/stuff              ;# set to path where to find tasks (say [pwd] if in local)     <<<<<<<<<<<< change this
     package require tasks 1.13
     namespace import tasks::*
     package require Tk ;# or just run with wish not tclsh
@@ -69,7 +69,7 @@
         return "Size -> [string length $n]" 
     } -tasks -2 -import_tasks    [list  "# this is a comment list element"                                                          \
                                         {-set ::t_debug 0x2}                  "# direct all task puts/putz to console or stdout"    \
-                                        {+debug=D:/stuff/vw_debugging.tcl}    "# *** need to setup the correct path here ***"       \
+                                        {+debug=D:/stuff/vw_debugging.tcl}    "# <<<<<<<<<<<<< need the correct path here <<<<<<<"  \
                                         {#-if {$::t_name eq "fibsize0"} {eval [instrument+ fibsize] } }  "# use this to just instrument in one task"  \
                                         fibonacci                                                                                   \
                                         #+fibonacci                           "# instrument fibonacci by uncomment"                 \
