@@ -16,7 +16,7 @@
 #   controls and watch the task_monitor.
 #
 #   to also instrument the fibonaci proc itself, enter in a command entry:  instrument+ fibonacci
-#   to stop instrumenting it enter:   i fibonacci -revert   (with or without the eval is ok)   
+#   to stop instrumenting it enter:   instrument+ fibonacci -revert   (with or without the eval is ok)   
 #
                              ########## important #################
 #####################################################################################
@@ -70,7 +70,7 @@
     } -tasks -2 -import_tasks    [list  "# this is a comment list element"                                                          \
                                         {-set ::t_debug 0x2}                  "# direct all task puts/putz to console or stdout"    \
                                         {+debug=D:/stuff/vw_debugging.tcl}    "# <<<<<<<<<<<<< need the correct path here <<<<<<<"  \
-                                        {#-if {$::t_name eq "fibsize0"} {eval [instrument+ fibsize] } }  "# use this to just instrument in one task"  \
+                                        {#-if {$::t_name eq "fibsize0"} {instrument+ fibsize } }  "# use this to just instrument in one task"  \
                                         fibonacci                                                                                   \
                                         #+fibonacci                           "# instrument fibonacci by uncomment"                 \
                                         +fibsize                              "# import fibonaci (above) and instrument fibsize"    \
