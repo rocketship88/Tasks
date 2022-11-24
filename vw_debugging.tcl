@@ -2687,7 +2687,7 @@ proc instrument+ {procedure args} {
         }
         # ok is now either 0 or 1, next we check for special cases and adjust ok based on that, but might just drop through
         set enable_seen 0
-        if { [string index $tline 0] eq "#"} { ;# want to skip lines beginning with # so we don't step through comments
+        if { [string index $tline 0] eq "#"} { ;# used to skip lines beginning with # so we don't step through comments, but better for coverage if we do, same with blank lines
             
             if       { [string range $tline 0 7] eq  "#enable+" } {
                 set enable 1
@@ -2734,7 +2734,7 @@ proc instrument+ {procedure args} {
         }
         incr idn 10000
         set id "bpid$idn"
-        if       { $ok == 0 || $ok == 3 || $ok == 4 || $ok == 5 || $ok == 6} { ;# we only gave these differnt numbers for debugging use
+        if       { $ok == 0 || $ok == 3 || $ok == 4 || $ok == 5 || $ok == 6} { ;# we only gave these differnt numbers for debugging use, and below we use ok for this purpose setting to 11,12,13, or 14
             set instrument "" ;# if incomplete or one blank lines, comment only, a return, and line continuation (but shouldn't see that here) 
         } elseif { $ok == 2 || $ok == 1 } {
             
@@ -2742,19 +2742,23 @@ proc instrument+ {procedure args} {
         } elseif { 0 } {
             
         } else {
-            set instrument "" ;# should not ever get here, but if we ever do, just don't instrument this line
+            set instrument "" ;# set ok 11 ;# should not ever get here, but if we ever do, just don't instrument this line (use ok for debug if enabled)
         }
         if { $ln == $nlines } {
-            set instrument ""
+            set instrument "" ;# set ok 12
         }
         if { $tline eq $rbracket && $norb} {
-            set instrument ""
+            set instrument "" ;# set ok 13
         } else {
 #           set zzz [regsub  "([ \t]);##([ \t])" line {\1 $} ?varName?]
             set zzz [regsub -nocase -linestop -lineanchor {([ \t])(;#+)([ \t])(?!.*")} $line "\\1$instrument\\3\\2 " result]
+            set trline [string trimleft $line]
+            if { [string index $trline 0] eq "#"} {
+                set zzz 0 ;# this would be a commented line, that has an on-line comment as well, treat it as just a comment line
+            }
             if { $zzz == 1 && $enable} {
                 set line $result
-                set instrument ""
+                set instrument "" ;# set ok 14
             }
             if { $instrument ne "" } {
                 incr idn ;# if we are doing an instrument, incr in lower portion also, for debugging mostly
@@ -2766,7 +2770,8 @@ proc instrument+ {procedure args} {
             } else {
                 set trline [string trimleft $line]
                 if { [string index $trline 0] eq "#"} {
-                    append out "$instrument ;# instrument-show-begin $line ;# instrument-show-end\n"
+#                    append out "$instrument ;# instrument-show-begin $line ;# instrument-show-end /$ok/ /$line/ //$instrument//\n" ;# debugging version
+                    append out "$instrument ;# instrument-show-begin $line ;# instrument-show-end\n" ;# the debug info would cause the show/no-show instr option to fail, so remove when done
                 } else {
                     append out "$line  $instrument\n"
                 }
