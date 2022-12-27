@@ -2,7 +2,7 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13e
+################################################# Tasks version 1.13f
 namespace eval tasks {  
 
 #   This version provides the windows system with a puts wrapper. puts can have 1-3 arguments. 
@@ -304,13 +304,17 @@ proc tdump {{pat .*} {max 90}} {         ;# dump all the shared Task variables
         
         set tidnames [tsv::array names tvar $val,*]
         foreach tname [lsort $tidnames] {
-            set val [tsv::get tvar $tname]
-            set val [string map {\n \u2936 \t \u02eb} $val]
-            if { [regexp .*${pat}.* "$tname\t[string range $val 0 $max]"] } {
+            if { $tname eq "$val,queue" } {
+                set value [::tsv::lrange tvar $tname 0 end] ;# tsv::get can cause a crash now in threads 2.8.8, so use this way
+            } else {
+                set value [tsv::get tvar $tname]
+            }
+            set value [string map {\n \u2936 \t \u02eb} $value]
+            if { [regexp .*${pat}.* "$tname\t[string range $value 0 $max]"] } {
                 if { $doputz } {
-                    putz "                 [format %-27s ($tname)] = |[string range $val 0 $max]| "
+                    putz "                 [format %-27s ($tname)] = |[string range $value 0 $max]| "
                 } else {
-                    lappend out [list $tname $val]
+                    lappend out [list $tname $value]
                 }
             }
         }
@@ -516,7 +520,7 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
     set once_tasks 1
     set output {}
     foreach arg $args {
-        if { [string index $arg 0] eq "-"  } {
+        if { [string index $arg 0] eq "-" } {
             append output [string range $arg 1 end] "\n"
         } elseif { [string index $arg 0] eq "#"} {
             append output $arg  "\n"
@@ -524,11 +528,9 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
             if       { [string first "+debug=" $arg] == 0} { ;# this is the path to the debugger code to source
                 set path [string range $arg 7 end]
                 set command "source \{$path\}\nset ::___zz___(bp_messages_default) 1"
-#               puts "path= |$path| command= |$command| "
             } else { ;# its's a proc name to instrument
                 set file [string range $arg 1 end]
                 set command "eval \[instrument+ $file\]"
-#               puts "file= |$file| command= |$command| "
             }
             append output $command "\n"
         } else {
@@ -559,8 +561,8 @@ proc tproc {args} {             ;# get procedure(s) and return results, internal
                         }
                         set space " "
                     }
-#                       No newline needed because info body may return a
-#                       value that starts with a newline
+#                   No newline needed because info body may return a
+#                   value that starts with a newline
                     append output  "} {"
                     append output   [info body $proc]
                 append output "}\n"
@@ -2876,6 +2878,7 @@ proc twidgets {} {
                     set zzz [grid info $args]
                     putz "grid: $zzz" green
                 } err_code] {
+                    
                 }
             }
             #   clipboard clear ; clipboard append $args
