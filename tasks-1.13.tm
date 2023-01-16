@@ -2,7 +2,7 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13f
+################################################# Tasks version 1.13g
 namespace eval tasks {  
 
 #   This version provides the windows system with a puts wrapper. puts can have 1-3 arguments. 
@@ -403,7 +403,8 @@ proc Task {name0 args} {        ;# create a Task
     set e1 "if \[catch \{$dw1"  ;# enclose script in a catch, and a while (unless suppressed with the option)
     
     set e2a "\n\}$dw2 thread_err_code thread_err_dict\] \{\n    tsv::set tvar $name,error \$thread_err_dict  \n"
-    set e2b {    package require Tk; tk_messageBox -message "Name = $::t_name Parent = $::t_pid\n$thread_err_code\n\n$thread_err_dict" -title "tid [thread::id]" ; vwait ::forever1}
+    set e2b {    package require Tk; set zzz [tk_messageBox -type yesno -detail {Select yes to exit, no to suspend} -message "Name = $::t_name Parent = $::t_pid\nmore info\n$thread_err_code\n\n$thread_err_dict" -title "tid [thread::id]" ]; 
+                 if {$zzz eq "yes"} exit else {vwait ::forever1}}
     set e2c "\n\}\n"
     
     set e2 ""
@@ -502,7 +503,7 @@ proc puts {args} {
     }
 
     set script0 "" ;# place another if/catch around the entire script, to catch things like namespace eval missing
-    append script0 "if \[catch \{\n" $script "\n" "\} err_code_Task_Create err_code_Task_Create_details\] \{ " "\n" "    tsv::set tvar $name,error \$err_code_Task_Create\n    package require Tk; tk_messageBox -title {Task create error} -message \"\$err_code_Task_Create \n\n \$err_code_Task_Create_details\"\n    vwait ::forever2\n\}"  
+    append script0 "if \[catch \{\n" $script "\n" "\} err_code_Task_Create err_code_Task_Create_details\] \{ " "\n" "    tsv::set tvar $name,error \$err_code_Task_Create\n    package require Tk; set zzz \[tk_messageBox -type yesno -detail {Select yes to exit, no to suspend} -title {Task create error} -message \"\$err_code_Task_Create \n\n \$err_code_Task_Create_details\"\]\n if {\$zzz eq \"yes\"} exit else {vwait ::forever2}\n\}"  
     set script $script0
     set tid [thread::create $script]
     
@@ -1786,7 +1787,7 @@ set utility_scripts {
                             }
                         } err_code] {
                             $::widget($row,$column) configure -bg red
-                            tsv::set tvar $tname,error $err_code    
+#                           tsv::set tvar $tname,error $err_code    ;# this error is not ours, it's because the task startup had an error, so leave it alone
                         }
                         continue
                     }
