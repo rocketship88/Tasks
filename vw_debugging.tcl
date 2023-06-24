@@ -868,7 +868,7 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
     set stophere 0
     if { $::___zz___(goto) >= 0 } {
         if { [expr {(   $::___zz___(lbp+,line) + 1    )}] ==  $::___zz___(goto) } {
-            if {  [lindex [vwdebug::get_frames] 0 ]  eq $::___zz___(go-window)} {
+            if { [string match *$::___zz___(go-window) [lindex [vwdebug::get_frames] 0 ]]     } { ;# right side match of qualified proc name
                 set stophere 1  
                 set ::___zz___(goto) -1 
             } else {
@@ -999,7 +999,11 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
                         for {set m $::___zz___(max_frames)} {$m <= 0} {incr m} {
                             if [catch {
                                 set up      [ info frame $m]
-#                               set vars    [uplevel [expr {(   0-$m   )}] info vars]
+                                if [catch {
+                                    set vars    [lsort -dictionary [uplevel [expr {(   0-$m   )}] info vars]]
+                                } err_code] {
+                                    set vars "?" 
+                                }
                                 if { [dict exists $up proc] } {
                                     set p [dict get $up proc] 
                                     if {$p eq "::$::___zz___(bp+)" || $p eq "::$::___zz___(lbp+)" } {
@@ -1007,7 +1011,7 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
                                     }
                                 }
                                 if { $::___zz___(bp) == 101 } {
-                                    puts "------------- $m ---------------"
+                                    puts "------------- $m --------------- vars= $vars"
                                 }
                                 foreach item [dict keys $up] {
                                     set val [dict get $up $item]
@@ -1058,7 +1062,8 @@ proc $::___zz___(go+) {{skip -1} {window ""}} {
         set skip -1
         set curr [lindex [vwdebug::get_frames] 0 ]
         if { $window ne "" } {
-            set ::___zz___(go-window) ::[string trimleft $window ":"] ;# this will be the target proc of a go to line
+#            set ::___zz___(go-window) ::[string trimleft $window ":"] ;# this will be the target proc of a go to line
+            set ::___zz___(go-window)  $window ;# this will now be the *window pattern for the proc of a go to line
         } else {
             set ::___zz___(go-window) $curr ;# this will be the target proc of a go to line
         }
@@ -1171,7 +1176,7 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
             return $err_code 
         }
         return "ok"
-    } elseif { $func eq "tabsize" } {           ;# see if the current line is a complete command, if not, find the end on following lines
+    } elseif { $func eq "tabsize" } {           
         set ::___zz___(tabsize) [lindex $args 0 ]
         $::___zz___(util+) fontsize .lbp_console.cframe.text +1 ;# bigger/smaller to adjust
         $::___zz___(util+) fontsize .lbp_console.cframe.text -1
@@ -1362,6 +1367,13 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
     set queue_it 0
     if       { $key eq "Return" || $key eq "KP_Enter"} {
         set val [set $var] ;# get the actual value
+        if {[string length $val] > 1 && [string index $val 0] eq "^" } { ;# ^number macro
+            set level [string range $val 1 end]
+            if {[string is integer $level] } {
+                set xxx {{foreach ___ [lsort -dictionary [info vars]] {puts -nonewline "[format %20s $___] = ";if [catch {puts [string range \{[set $___]\} 0 80]} err_code] {puts $err_code }};unset ___}}
+                set val "uplevel $level $xxx"
+            }
+        }
         if { $val eq "" } {
             set lastone [lindex $::___zz___(history,$n) 0 ] 
             if { $lastone eq "" } {
@@ -1685,6 +1697,8 @@ if { 00 } {
         puts "     grid ?y-extra? ?x-incr? reposition all data windows uses 15 / 500 for y/x"
     } elseif { $func eq "stuff" } {
         dothis-stuff
+    } elseif { $func eq "stop" } { ;#same as stop button
+        set ::___zz___(skips) 1;set ::___zz___(goto) -1
     } else {
         error "invalid util+ function, should be one of lp, fontsize, smod, clean, tabsize ... or ?"
     }
