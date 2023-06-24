@@ -13,7 +13,7 @@ Tasks include development tools and a simple Tk console for debugging.
 
 !!! NEW !!! 
 
-The vw debugging system has been added which is a standalone debugging system that includes Tk variable tracking via entry widgets plus several in-code breakpoints for procedures, TCLOO methods, and global scope code. Tproc's, Tasks, and tgroup's now have support for loading it into 1 or more Task/threads. 
+The vw debugging system has been added which is a standalone debugging system that includes Tk variable tracking via entry widgets plus several in-code breakpoints for procedures, TCLOO methods, and global scope code. Tproc's, Tasks, and tgroup's now have support for loading it into 1 or more Task/threads. It's loaded via a simple source command and so can be used inside Tasks (threads).
 
 The included instrumenter can dynamically add breakpoints to a proc or method which can then be single stepped both manually or in auto-step run/stop mode to watch data change. The current instruction line is indicated with an -> in a source code window. Stepping speed can be dynamically controlled with 3 digit spinboxes (000 - 999 ms between instructions) to better visualize a program's execution.
 
