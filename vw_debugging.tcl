@@ -820,10 +820,12 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         set ww .[lindex $wl 1]
         set ::___zz___(vws,$ww) [list $ww $pat $wid $alist [wm geom $ww]]
 #       set ::___zz___(vws,$ww) [list $ww $pat $wid {} [wm geom $ww]]
-        bind $ww <Configure> {
-            if { [llength [split %W .]] == 2 } {
-                lset ::___zz___(vws,%W) end [wm geom %W] ;# update to the current position and size
-            } else {
+        if { [bind $ww <Configure>] eq "" } {
+            bind $ww <Configure> {
+                if { [llength [split %W .]] == 2 } {
+                    lset ::___zz___(vws,%W) end [wm geom %W] ;# update to the current position and size
+                } else {
+                }
             }
         }
     } err_code] {
