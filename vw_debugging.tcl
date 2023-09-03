@@ -1466,6 +1466,12 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 # ------------------------------------------------------ utility double-click a line number  ---------------------------
 
     
+    } elseif { $func eq "right-click" } {  ;# this is used to set the uplevel box to expr <selection>
+        set selranges [.lbp_console.cframe.text tag ranges sel]
+        set selection [.lbp_console.cframe.text get {*}$selranges]
+        set ::___zz___(entry3) "expr $selection"
+        focus -force .lbp_console.uframe.entry  
+        .lbp_console.uframe.entry icursor end
     } elseif { $func eq "double-click" } {  ;# this is used to set the go -N value, to run till line number
         set selranges [.lbp_console.cframe.text tag ranges sel]
         set selection [.lbp_console.cframe.text get {*}$selranges]
@@ -2139,6 +2145,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         frame .lbp_console.xframe ;# frame with command execute entry (I give up trying to get the buttons/entry to line up with the default font, so use a fixed size one)
         ${ttk}button .lbp_console.xframe.lab3a -text "Command:" {*}$opts2 -command {set ::___zz___(entry1) "";focus .lbp_console.xframe.entry } ;#-font {courier 14}
         ${ttk}entry .lbp_console.xframe.entry -text "entry" -textvariable ::___zz___(entry1) {*}$opts3 ; #set ::___zz___(entry1) "set args"
+        bind  .lbp_console.xframe.lab3a <Button-3> [list $::___zz___(util+) enter-callback 2 .lbp_console.xframe.entry Return]
         bind  .lbp_console.xframe.entry <Key-Return> [list $::___zz___(util+) enter-callback 2 %W %K]
         bind  .lbp_console.xframe.entry <Key-KP_Enter> [list $::___zz___(util+) enter-callback 2 %W %K]
         bind  .lbp_console.xframe.entry <Key-Up> [list $::___zz___(util+) enter-callback 2 %W %K]
@@ -2273,6 +2280,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
  #      -------------------------------------------------
                                                             
                                                                                                                     
+        bind  .lbp_console.uframe.lab3c <Button-3>   [list $::___zz___(util+) enter-callback 1 .lbp_console.uframe.entry Return]
         bind  .lbp_console.uframe.entry <Key-Return> [list $::___zz___(util+) enter-callback 1 %W %K]
         bind  .lbp_console.uframe.entry <Key-KP_Enter> [list $::___zz___(util+) enter-callback 1 %W %K]
         bind  .lbp_console.uframe.entry <Key-Up> [list $::___zz___(util+) enter-callback 1 %W %K]
@@ -2306,6 +2314,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         
         pack .lbp_console.cframe.text    -side left -expand 1 -fill both
         bind .lbp_console.cframe.text  <Double-Button-1> [list after idle [list $::___zz___(util+) double-click %W %x %y]]
+        bind .lbp_console.cframe.text  <Button-3>        [list after idle [list $::___zz___(util+) right-click %W %x %y]]
 #       bind .t   <Double-Button-1> [list after idle [list $foo double-click %W %x %y]]     
         pack .lbp_console.cframe.y   -side right -expand 0 -fill y
         
@@ -2330,8 +2339,8 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                 if { $delay > 0 } {
                     tooltip::tooltip delay $delay
                     tooltip::tooltip  .lbp_console.xframe.labell "Show N lines below current line"
-                    tooltip::tooltip  .lbp_console.xframe.lab3a  "Clear the command entry, where you can\nenter a command. Runs at global level, however\nso be careful"
-                    tooltip::tooltip  .lbp_console.uframe.lab3c  "Clear the uplevel entry, where you can\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr"
+                    tooltip::tooltip  .lbp_console.xframe.lab3a  "left=Clear the command entry, right=invoke\nenter a command. Runs at global level, however\nso be careful"
+                    tooltip::tooltip  .lbp_console.uframe.lab3c  "left=Clear the uplevel entry, right=invoke\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr\n\n^N for level N will insert a script to display\nvariables from that level and output to stdout\n\nA selected text string in the code window\nfollowed by a right-click will copy\nexpr <selection> to this entry with focus"
 
                     tooltip::tooltip .lbp_console.bframe.b1     "Menu of utility commands, left click\ncan tearoff menu with ----------"     
 #                   tooltip::tooltip .lbp_console.bframe.b2     "Scroll to Bottom of the window"    
