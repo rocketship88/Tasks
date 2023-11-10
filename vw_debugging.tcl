@@ -15,6 +15,7 @@ set ::___zz___(max_frames) -20      ;# the maximum number nested procedure calls
 set ::___zz___(skip_modulo) 100     ;# when using a large skip count on go+ this is the number of steps between reporting remaining messages
 set ::___zz___(arrow) "\u27F6"      ;# Unicode arrow, can be 2 char positions also, can cause a wobble of the line number, if you like that
 set ::___zz___(carrow) "\u2727"     ;# Unicode coverage arrow, or whatever it is 
+set ::___zz___(sel) copy            ;# code window selections, 3 behaviors, copy, expr OR a variable (e.g. ::___) to set
 set ::___zz___(tabsize) 4           ;# code window tabsize
 set ::___zz___(fontsize) 12         ;# data window font size 
 set ::___zz___(minupdate) 1         ;# this causes an update of only the arrow, otherwise redraws code on each step, can't be on to show instrumentation
@@ -1178,6 +1179,14 @@ proc $::___zz___(util+) {func args} { ;# increase or decrease font, and do the l
             return $err_code 
         }
         return "ok"
+    } elseif { $func eq "toggletabsize" } { ;# toggle between 4 and 8
+        if { $::___zz___(tabsize) == 4 } {
+            $::___zz___(util+) tabsize 8
+            .lbp_console.bframe.b4a config -text 8
+        } else {
+            $::___zz___(util+) tabsize 4
+            .lbp_console.bframe.b4a config -text 4
+        }           
     } elseif { $func eq "tabsize" } {           
         set ::___zz___(tabsize) [lindex $args 0 ]
         $::___zz___(util+) fontsize .lbp_console.cframe.text +1 ;# bigger/smaller to adjust
@@ -1466,12 +1475,53 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
 # ------------------------------------------------------ utility double-click a line number  ---------------------------
 
     
+    } elseif { $func eq "enter-escape" } {      ;# this is used to set the uplevel box close the brackets
+        set zzz [lindex [vwdebug::closeem $::___zz___(entry3)] 0]
+#                                                                                                                               puts "closem is $zzz"
+        set ::___zz___(entry3) "$::___zz___(entry3) $zzz"
+        if { ![info complete $::___zz___(entry3)] } {
+            puts stderr "Uplevel entry is not complete"
+        }
+        return
     } elseif { $func eq "right-click" } {  ;# this is used to set the uplevel box to expr <selection>
         set selranges [.lbp_console.cframe.text tag ranges sel]
+        if [catch {
         set selection [.lbp_console.cframe.text get {*}$selranges]
+        } err_code] {
+            puts stderr $err_code
+            return 
+        }
+        if { $::___zz___(sel) eq "expr"} {
         set ::___zz___(entry3) "expr $selection"
         focus -force .lbp_console.uframe.entry  
-        .lbp_console.uframe.entry icursor end
+            .lbp_console.uframe.entry icursor 0
+            .lbp_console.uframe.entry selection range 0 4
+        } elseif { $::___zz___(sel) eq "copy"} {
+#            set ::___zz___(entry3) "$::___zz___(entry3)$selection"
+            focus -force .lbp_console.uframe.entry  
+            .lbp_console.uframe.entry insert insert $selection
+            .lbp_console.uframe.entry icursor end
+        } else {
+            set sel $::___zz___(sel) 
+            set selection [string trim $selection]
+            set c1 [string index $selection 0]
+            set ce [string index $selection end]
+            if       {$c1 eq "\{" && $ce eq "\}" } {
+                set ::___zz___(entry3) "set $sel \[ expr $selection \]"
+            } elseif { $c1 eq "\[" && $ce eq "\]" } {
+                set ::___zz___(entry3) "set $sel $selection"
+            } else {
+                set ::___zz___(entry3) "set $sel \[expr \{ $selection \} \]"
+            }
+            focus -force .lbp_console.uframe.entry  
+            .lbp_console.uframe.entry icursor 0
+            .lbp_console.uframe.entry selection range 0 0
+            if { ![info complete $::___zz___(entry3)] } {
+                puts stderr "Uplevel entry is not complete"
+                return
+            }
+            .lbp_console.uframe.entry selection range 0 [expr 4+[string length $sel]]
+        }
     } elseif { $func eq "double-click" } {  ;# this is used to set the go -N value, to run till line number
         set selranges [.lbp_console.cframe.text tag ranges sel]
         set selection [.lbp_console.cframe.text get {*}$selranges]
@@ -1708,8 +1758,9 @@ if { 00 } {
     } elseif { $func eq "stop" } { ;#same as stop button
         set ::___zz___(skips) 1;set ::___zz___(goto) -1
     } else {
-        error "invalid util+ function, should be one of lp, fontsize, smod, clean, tabsize ... or ?"
+        error "invalid util+ function, should be one of lp, tabsize, smod, clean, grid ... or ?"
     }
+    return
 }
 
     
@@ -2131,6 +2182,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 
         ${ttk}button .lbp_console.bframe.b3    -text "Font --" -command [list $::___zz___(util+) fontsize .lbp_console.cframe.text -1] ;# -image $image ;#
         ${ttk}button .lbp_console.bframe.b4    -text "Font ++" -command [list $::___zz___(util+) fontsize .lbp_console.cframe.text 1] ;# -image $image ;#
+        ${ttk}button .lbp_console.bframe.b4a    -text "4/8" -command [list $::___zz___(util+) toggletabsize] ;# -image $image ;#
         ${ttk}button .lbp_console.bframe.b5    -text "Console" -command {catch {console show}} ;# -image $image ;#
         ${ttk}button .lbp_console.bframe.b6    -text "Stop"      -command {set ::___zz___(skips) 1;set ___zz___(goto) -1} ;# -image $image ;#
         ${ttk}button .lbp_console.bframe.b7    -text "Go/Step"   -command [list $::___zz___(go+)]  ;# -image $image ;#
@@ -2281,6 +2333,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                                                             
                                                                                                                     
         bind  .lbp_console.uframe.lab3c <Button-3>   [list $::___zz___(util+) enter-callback 1 .lbp_console.uframe.entry Return]
+        bind  .lbp_console.uframe.entry <Key-Escape> [list $::___zz___(util+) enter-escape 1 %W %K]
         bind  .lbp_console.uframe.entry <Key-Return> [list $::___zz___(util+) enter-callback 1 %W %K]
         bind  .lbp_console.uframe.entry <Key-KP_Enter> [list $::___zz___(util+) enter-callback 1 %W %K]
         bind  .lbp_console.uframe.entry <Key-Up> [list $::___zz___(util+) enter-callback 1 %W %K]
@@ -2318,7 +2371,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 #       bind .t   <Double-Button-1> [list after idle [list $foo double-click %W %x %y]]     
         pack .lbp_console.cframe.y   -side right -expand 0 -fill y
         
-        pack .lbp_console.bframe.b0 .lbp_console.bframe.b1 .lbp_console.bframe.b3  .lbp_console.bframe.b4 .lbp_console.bframe.b5 .lbp_console.bframe.b6  .lbp_console.bframe.b9   .lbp_console.bframe.b7   .lbp_console.bframe.b2a .lbp_console.bframe.b8  -fill both -expand true -side left
+        pack .lbp_console.bframe.b0 .lbp_console.bframe.b1 .lbp_console.bframe.b3  .lbp_console.bframe.b4 .lbp_console.bframe.b4a .lbp_console.bframe.b5 .lbp_console.bframe.b6  .lbp_console.bframe.b9   .lbp_console.bframe.b7   .lbp_console.bframe.b2a .lbp_console.bframe.b8  -fill both -expand true -side left
         if { [info exist ::___zz___(console_geom) ]} {
 #           after 100 {wm geom .lbp_console {*}$::___zz___(console_geom) ; update}
             puts "setting lbp console geom $::___zz___(console_geom) "
@@ -2340,13 +2393,18 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                     tooltip::tooltip delay $delay
                     tooltip::tooltip  .lbp_console.xframe.labell "Show N lines below current line"
                     tooltip::tooltip  .lbp_console.xframe.lab3a  "left=Clear the command entry, right=invoke\nenter a command. Runs at global level, however\nso be careful"
-                    tooltip::tooltip  .lbp_console.uframe.lab3c  "left=Clear the uplevel entry, right=invoke\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr\n\n^N for level N will insert a script to display\nvariables from that level and output to stdout\n\nA selected text string in the code window\nfollowed by a right-click will copy\nexpr <selection> to this entry with focus"
+                    if { $::___zz___(sel) eq "expr" } {
+                        tooltip::tooltip  .lbp_console.uframe.lab3c  "left=Clear the uplevel entry, right=invoke\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr\n\n^N for level N will insert a script to display\nvariables from that level and output to stdout\n\nA selected text string in the code window\nfollowed by a right-click will copy\nexpr <selection> to this entry with focus"
+                    } else {
+                        tooltip::tooltip  .lbp_console.uframe.lab3c  "left=Clear the uplevel entry, right=invoke\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr\n\n^N for level N will insert a script to display\nvariables from that level and output to stdout\n\nA selected text string in the code window\nfollowed by a right-click will copy\nset $::___zz___(sel) <selection> to this entry with focus"
+                    }
 
                     tooltip::tooltip .lbp_console.bframe.b1     "Menu of utility commands, left click\ncan tearoff menu with ----------"     
 #                   tooltip::tooltip .lbp_console.bframe.b2     "Scroll to Bottom of the window"    
                     tooltip::tooltip .lbp_console.bframe.b2a    "Keep the window steady, may result\nin some lines off screen\nbypasses .text see calls and\njust keeps scrollbar at the top"    
                     tooltip::tooltip .lbp_console.bframe.b3     "Smaller font"   
                     tooltip::tooltip .lbp_console.bframe.b4     "Larger font"   
+                    tooltip::tooltip .lbp_console.bframe.b4a     "toggle between tabsize 4 and 8"   
                     tooltip::tooltip .lbp_console.bframe.b5     "Open the Console - only if in main thread\nthere is no console in tasks"   
                     tooltip::tooltip .lbp_console.bframe.b6     "Stop a go+ command, if running N breakpoints \nor running to line number or run mode\nUse to view code with scrollbar"     
                     tooltip::tooltip .lbp_console.bframe.b7     "Go - one step, or to next breakpoint\ndble click a line # to run to line\ncan use stop to break earlier" 
@@ -2842,6 +2900,55 @@ namespace eval vwdebug {
             set c $::___zz___($item)
             puts "Instrumented method    = [format %-15s $mt] -class $c"    
         }
+    }
+    proc closeem {line} {
+        set positions {}
+        set out {}
+        set in [lreverse [split $line {}]]
+        set n [string length $line]
+        set paren 0
+        set brace 0
+        set bracket 0
+        set quote 0
+        set ob "\{"
+        set cb "\}"
+        foreach char $in {
+            incr n -1
+            if       { $char eq "\"" } {
+                if { $quote } {
+                    set quote 0
+                } else {
+                    set quote 1 
+                }
+            } elseif { $quote > 0 } {
+            } elseif {  $char eq "\(" } {
+                if { $paren > 0 } {
+                    incr paren -1
+                } else {
+                    append out ")"  ; lappend positions $n
+                }
+            } elseif {  $char eq "\[" } {
+                if { $bracket > 0 } {
+                    incr bracket -1
+                } else {
+                    append out "\]" ; lappend positions $n
+                }
+            } elseif {  $char eq $ob } {
+                if { $brace > 0 } {
+                    incr brace -1
+                } else {
+                    append out $cb  ; lappend positions $n
+                }
+            } elseif {  $char eq "\)" } {
+                incr paren
+            } elseif {  $char eq "\]" } {
+                incr bracket
+            } elseif {  $char eq $cb } {
+                incr brace
+            } else {
+            }
+        }
+            return [list $out $positions]
     }
     proc do_destroy {kind args} {
         variable cash
