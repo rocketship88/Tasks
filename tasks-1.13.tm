@@ -1267,7 +1267,7 @@ proc task_monitor {args} {
             }
             event generate .top.fra.scframe.canvas <Configure> ;# should be able to compute this widget path, but...
         }
-        ; proc column_sizer {mult col which widgetx} { ;# left/right clicks on heading will resize column left=smaller (min size 3) (max size 100)
+        ; proc column_sizer {mult col which widgetx } { ;# left/right clicks on heading will resize column left=smaller (min size 1) (max size 200)
             set current [$widgetx cget -width]
 #           tasks::putz  "col= |$col| nrows= |$::nrows| which= |$which| widgetx= |$widgetx| current= |$current| " green
             for {set n 0} {$n <= $::nrows  } {incr n} {
@@ -1275,7 +1275,7 @@ proc task_monitor {args} {
                 if { $which == 1 } {
                     set newcur  [expr {   max(1,$current - (3*$mult))   }]
                 } else {
-                    set newcur  [expr {   min(100,$current + (3*$mult))    }]
+                    set newcur  [expr {   min(200,$current + (3*$mult))    }]
                 }
 #               tasks::putz "newcur= |$newcur| " 
                 $::widget($n,$col) configure -width $newcur
@@ -1583,18 +1583,21 @@ set utility_scripts {
     Task _taskmonitor  -import_tasks [list -$sframe_script -$create_frame_script -$utility_scripts tasks::repos tasks::* balloon::* {- #set t_debug 0} ] {
         set repos_rows ""
         set putzwindow ""
-
-        tasks::twait -> init_nrows fsize repos_rows putzwindow    ;# max rows, font size to use, and if present monitor size vertical for repos, and putz window will open, 
+        set max_string ""                       ;# maximum size of the result column
+        tasks::twait -> init_nrows fsize repos_rows putzwindow  max_string  ;# max rows, font size to use, and if present monitor size vertical for repos, and putz window will open, 
+        if { $max_string eq "" } {
+            set max_string 200                  ;# default max string size for text entries so we don't hang
+        }
         if { $init_nrows eq "" } {
             set init_nrows 10                   ;# default rows
         }
-        tasks::treturn "initial rows: $init_nrows $repos_rows $putzwindow"
-        
         if { $fsize eq "" } {
             set fsize 10                        ;# default font size if caller didn't supply one (missing args are always null)
         }
+        tasks::treturn "initial rows=$init_nrows fnt:{$fsize} repos:{$repos_rows} putz:{$putzwindow} max size=$max_string"
+        
         if { $putzwindow ne ""  && $putzwindow} {
-            tasks::putz "Initial rows: |$init_nrows|  Font Size = |$fsize| repos rows = |$repos_rows| putzwindow = |$putzwindow|"
+            tasks::putz "Init rows: |$init_nrows|  Font = |$fsize| repos rows = |$repos_rows| putz = |$putzwindow| max-size=$max_string"
         }
 #       -------------------------------- gui ---------------------------------------------------------
         package require Tk
@@ -1612,7 +1615,7 @@ set utility_scripts {
         ttk::labelframe .top.frame              -text "  Task Monitor Controls  "   -padding [list 5 2 5 2]
         
         ttk::labelframe .top.frame.delay        -text "Refresh  / Font"
-        ttk::spinbox    .top.frame.delay.sb     -from .5  -to 5    -increment .5    -textvariable refresh_seconds   -width 4   -font {TkTextFont 14}
+        ttk::spinbox    .top.frame.delay.sb     -from .2  -to 5    -increment .2    -textvariable refresh_seconds   -width 4   -font {TkTextFont 14}
         ttk::spinbox    .top.frame.delay.sb2    -from 6   -to 20   -increment 1     -textvariable fsize             -width 4   -font {TkTextFont 14} -command [list font_callback]
         
         ttk::labelframe .top.frame.repos        -text "reposition X / Y"
@@ -1817,11 +1820,17 @@ set utility_scripts {
                         set ::table($row,$column) $temp     ;# update the table to the current
                     } else {
                         set temp [tasks::tset $tname $item] ;# current value
+                        set temp2 [string range $temp 0 $max_string]
                         set tval $::table($row,$column)     ;# table value
-                        set ::table($row,$column) $temp     ;# update the table to the current
+                        if { [string length $temp] > $max_string } {
+                            set ::table($row,$column) "$temp2 ..." ;# update the table to the current
+                        } else {
+                            set ::table($row,$column) $temp ;# update the table to the current
+                        }
+                        
                     }
                     
-                    if { $temp != $tval } {
+                    if { [string range $temp  0 $max_string] ne [string range $tval  0 $max_string] } {
                         if { $changes } {
                             $::widget($row,$column) configure -bg pink  ;# show this changed
                         }
