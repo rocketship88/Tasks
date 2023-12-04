@@ -2,7 +2,7 @@ package require Thread
     
 tsv::set  tids [thread::id] mainthread  ;# for reverse lookup 
 tsv::set  main mainthread [thread::id]  ;# for reverse lookup 
-################################################# Tasks version 1.13g
+################################################# Tasks version 1.13h
 namespace eval tasks {  
 
 #   This version provides the windows system with a puts wrapper. puts can have 1-3 arguments. 
@@ -209,7 +209,7 @@ proc putz {args} { ;# debugging put using a text widget from a Task (a thread) a
             .taskdebug.ttttt insert end $arg\n $color
         }
         .taskdebug.ttttt see end
-        update
+#        update ;# bad idea, this messes up programs that have event handlers, like our socket server demo
     } err_code] {
     }
 }
@@ -1201,6 +1201,17 @@ proc repos {args} {
 ###################################################################
 
 proc task_monitor {args} {
+    if { $args eq "kill" } {
+        if [catch {
+            thread::cancel -unwind [tsv::get tvar _taskmonitor,tid]
+            tsv::unset tvar _taskmonitor,pid
+            tsv::unset tids [tsv::get tvar _taskmonitor,tid]
+        } err_code] {
+            puts $err_code
+        }
+        return
+    }
+    
     
 #   --------------------------------------- create frames
     set create_frame_script {
@@ -1633,7 +1644,7 @@ set utility_scripts {
         ttk::frame      .top.frame.frame2.frame4
         
         button          .top.frame.frame3.b3           -text "Exit    "        -command {exit} -font {consolas 10}
-        button          .top.frame.frame3.b4           -text "Send Cmd"    -command {tasks::send_command} -font {consolas 10}
+        button          .top.frame.frame3.b4           -text "Send Cmd"    -command {thread::send -async [tsv::get main mainthread] {catch {tasks::send_command}}} -font {consolas 10}
         
         button          .top.frame.frame2.frame4.b5           -text "Save"        -command {save_layout} -font {consolas 10}
         button          .top.frame.frame2.frame4.b6           -text "Restore"    -command {restore_layout} -font {consolas 10}
@@ -1671,7 +1682,16 @@ set utility_scripts {
         pack    .top.frame.pause.on     .top.frame.pause.off                    -side left -expand 0  -fill x
         
         wm geom .top 892x318+128+128
-        wm protocol .top WM_DELETE_WINDOW {putz "Can't close the monitor, pause and use minimize \nputz windows can be closed and reopened however" yellowonblack}
+        wm protocol .top WM_DELETE_WINDOW {
+            if [catch {
+                tsv::unset tvar _taskmonitor,pid
+                tsv::unset tids [tsv::get tvar _taskmonitor,tid]
+                thread::cancel -unwind [tsv::get tvar _taskmonitor,tid]
+            } err_code] {
+#               puts $err_code
+            }
+
+        }
 #       -----------------------------------------------------------------------------------------
         
 #       ;proc xputs  {args} {
@@ -1704,9 +1724,14 @@ set utility_scripts {
                     continue
                 }
 #               tasks::putz "                                 turn pause $arg for $ind / $tn   "
-                set tid [tasks::tset $tn tid]
-                if { ! [thread::exists $tid]} {
-                    continue
+                if [catch {
+                    set tid [tasks::tset $tn tid]
+                    if { ! [thread::exists $tid]} {
+                        continue
+                    }
+                } err_code] {
+                    puts $err_code
+                    continue 
                 }
 #               tasks::putz "                                  $tid"
                 thread::send -async $tid "set t_task_pause $p"
@@ -1742,6 +1767,7 @@ set utility_scripts {
         
 #       ---------------------------- main monitoring loop -------------------------------------
         
+        set lastrow -1
         while 1 {
             tasks::tpause_check
             if { $pause } {
@@ -1794,51 +1820,67 @@ set utility_scripts {
                         }
                         continue
                     }
-                    if { $item eq "queue" } {
-                        set temp [tsv::llength tvar $tname,queue]   ;# current value
-                        if { $temp == 0 } {
-                            set temp ""
-                        }
-                        set tval $::table($row,$column)             ;# table value now
-                        set ::table($row,$column) $temp             ;# new value
-                    } elseif { $item eq "count" } {
-                        set temp [tasks::tset $tname $item]         ;# current value
-                        if { $temp == 0 } {
-                            set temp ""
-                        }
-                        set tval $::table($row,$column)             ;# table value now
-                        set ::table($row,$column) $temp             ;# new value
-                    } elseif { $item eq "pid" } {
-                        set temp [tasks::tset $tname $item]         ;# current value
-#                       tasks::putz "item= |$item| temp= |$temp| tname= |$tname| row= |$row| column= |$column| "
-                        if [catch {
-                            set temp [tasks::tname $temp]
-                        } err_code] {
-                            set temp "$err_code"
-                        }
-                        set tval $::table($row,$column)     ;# table value
-                        set ::table($row,$column) $temp     ;# update the table to the current
-                    } else {
-                        set temp [tasks::tset $tname $item] ;# current value
-                        set temp2 [string range $temp 0 $max_string]
-                        set tval $::table($row,$column)     ;# table value
-                        if { [string length $temp] > $max_string } {
-                            set ::table($row,$column) "$temp2 ..." ;# update the table to the current
+                    if [catch {
+                        if { $item eq "queue" } {
+                            set temp [tsv::llength tvar $tname,queue]   ;# current value
+                            if { $temp == 0 } {
+                                set temp ""
+                            }
+                            set tval $::table($row,$column)             ;# table value now
+                            set ::table($row,$column) $temp             ;# new value
+                        } elseif { $item eq "count" } {
+                            set temp [tasks::tset $tname $item]         ;# current value
+                            if { $temp == 0 } {
+                                set temp ""
+                            }
+                            set tval $::table($row,$column)             ;# table value now
+                            set ::table($row,$column) $temp             ;# new value
+                        } elseif { $item eq "pid" } {
+                            set temp [tasks::tset $tname $item]         ;# current value
+#                           tasks::putz "item= |$item| temp= |$temp| tname= |$tname| row= |$row| column= |$column| "
+                            if [catch {
+                                set temp [tasks::tname $temp]
+                            } err_code] {
+                                set temp "$err_code"
+                            }
+                            set tval $::table($row,$column)     ;# table value
+                            set ::table($row,$column) $temp     ;# update the table to the current
                         } else {
-                            set ::table($row,$column) $temp ;# update the table to the current
+                            set temp [tasks::tset $tname $item] ;# current value
+                            set temp2 [string range $temp 0 $max_string]
+                            set tval $::table($row,$column)     ;# table value
+                            if { [string length $temp] > $max_string } {
+                                set ::table($row,$column) "$temp2 ..." ;# update the table to the current
+                            } else {
+                                set ::table($row,$column) $temp ;# update the table to the current
+                            }
+                            
                         }
                         
+                        if { [string range $temp  0 $max_string] ne [string range $tval  0 $max_string] } {
+                            if { $changes } {
+                                $::widget($row,$column) configure -bg pink  ;# show this changed
+                            }
+                        } else {
+                            $::widget($row,$column) configure -bg grey97    ;# back to this if not changed
+                        }
+                    } err_code] {
+#                       putz $err_code
+#                       set pause 1
                     }
                     
-                    if { [string range $temp  0 $max_string] ne [string range $tval  0 $max_string] } {
-                        if { $changes } {
-                            $::widget($row,$column) configure -bg pink  ;# show this changed
-                        }
-                    } else {
-                        $::widget($row,$column) configure -bg grey97    ;# back to this if not changed
+               }
+            }
+            if { $lastrow != -1 } {
+                if { $row == ($lastrow-1) } {
+                    putz "less rows   lastrow= |$lastrow| row= |$row| nrows= |$nrows| tab= |$::table($lastrow,0) $::table($lastrow,1)|"
+                    for {set mc 0} {$mc <= $column} {incr mc} {
+                        set ::table($lastrow,$mc) "."   
                     }
+                    $::widget($lastrow,1) configure -bg grey97
                 }
             }
+            set lastrow $row
             if { $once == 0 } {
                 wm geom .top 1495x312+2+2
                 incr once
@@ -2760,7 +2802,8 @@ proc do_tab {window} {                      ;# callback for a tab char
                         red    {set ::color red}
                     }
                     -- --
-                    "Run Task Monitor"          {tasks::task_monitor}
+                    "Run  Task Monitor"          {thread::send -async [tsv::get main mainthread] {catch {tasks::task_monitor}}}
+                    "kill Task Monitor"          {tasks::task_monitor kill}
                     -- --
                     "Save History"              {do_load_save 1 .f.t .f.w}
                     "Reload History"            {do_load_save 0 .f.t .f.w}
@@ -2769,7 +2812,16 @@ proc do_tab {window} {                      ;# callback for a tab char
                 } 0
             }
             do_refresh_tasks_menu ;# also first time create too
-            wm protocol . WM_DELETE_WINDOW {putz "Can't close sendcmd, use minimize \nputz windows can be closed and reopened however" yellowonblack}
+#            wm protocol . WM_DELETE_WINDOW {putz "Can't close sendcmd, use minimize \nputz windows can be closed and reopened however" yellowonblack}
+            wm protocol . WM_DELETE_WINDOW {
+                if [catch {
+                    tsv::unset tids [tsv::get tvar sendcmd,tid] ;# have to unset this first
+                    tsv::unset tvar sendcmd,pid
+                    thread::cancel -unwind [tsv::get tvar sendcmd,tid]
+                } err_code] {
+#                  puts $err_code
+                }
+            }
 
             tasks::treturn ok
             thread::wait
