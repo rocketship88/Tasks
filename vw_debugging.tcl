@@ -2655,7 +2655,7 @@ proc instrument+ {procedure args} {
         }
         set themethod [lindex $args 1 ]
         if { $themethod eq "*" } {
-            foreach item [info class methods $theclass -private] {
+            foreach item [info class methods $theclass ] {
                 if { $no_warn } {
                     instrument+ -class $theclass $item -nowarn  
                 } else {
