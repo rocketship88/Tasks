@@ -6,7 +6,7 @@ set ::___zz___(auto_list_default) 1 ;# this sets the auto list checkbox to this 
 set ::___zz___(bp_messages_default) 1 ;# this sets the no bp messages checkbox to this value at first creation of checkbox
 set ::___zz___(console_hack) 0      ;# if 1, installs a console hack to allow an empty <cr> line on console, repeats last command (handy for go+)
 set ::___zz___(tooltips) 1000       ;# if > 0 tooltip enabled and value=delay, if the package require fails, it will report and work w/o it, 0=don't use
-set ::___zz___(tooltipsbuiltin) 0   ;# if > 0 use hobb's tooltip package, at bottom of this file if no tooltips package available, e.g. on linux w/o tcllib
+set ::___zz___(tooltipsbuiltin) 1   ;# if > 0 use hobb's tooltip package, at bottom of this file if no tooltips package available, e.g. on linux w/o tcllib
 set ::___zz___(use_ttk) 0           ;# if 1, some windows use the themed ttk, but not the label or entries since we use -bg
 set ::___zz___(max_size) 1000       ;# the maximum size of a variable, for safety, also if the variable does not yet exist, we can't monitor it, increase at your own risk
 set ::___zz___(max_array_size) 500  ;# the maximum size of a array in indices
@@ -15,7 +15,6 @@ set ::___zz___(max_frames) -20      ;# the maximum number nested procedure calls
 set ::___zz___(skip_modulo) 100     ;# when using a large skip count on go+ this is the number of steps between reporting remaining messages
 set ::___zz___(arrow) "\u27F6"      ;# Unicode arrow, can be 2 char positions also, can cause a wobble of the line number, if you like that
 set ::___zz___(carrow) "\u2727"     ;# Unicode coverage arrow, or whatever it is 
-set ::___zz___(sel) copy            ;# code window selections, 3 behaviors, copy, expr OR a variable (e.g. ::___) to set
 set ::___zz___(tabsize) 4           ;# code window tabsize
 set ::___zz___(fontsize) 12         ;# data window font size 
 set ::___zz___(minupdate) 1         ;# this causes an update of only the arrow, otherwise redraws code on each step, can't be on to show instrumentation
@@ -50,7 +49,10 @@ catch {history keep 100}            ;# keep console history more than just 20, c
 
 #
 #these statements are at global level, outside of all procs, and shouldn't be changed (unless you really know what you're doing)
+set ::tcl_wordchars {\S}
+set ::tcl_nonwordchars {[\[\]\{\} \$\:\(\)\|\"\n\\/\t<>!=]} ;# this is so we can double click variable names adjacent to special chars like, < > etc.
 
+set ::___zz___(sel) copy        ;# code window selections, 3 behaviors, copy (do not change, other values are experimental)
 set ::___zz___(lg-skip) [linsert [info global] end ___zz___] ;# skip initial system set of globals, + this one
 set ::___zz___(skips) 0         ;# the number of breakpoints to skip, set here to avoid an info exist test, do not change, internal use only
 set ::___zz___(showinstr) 0     ;# show instrumentation in code window
@@ -472,7 +474,19 @@ proc $::___zz___(vw+) {{pat {**}}  {w .vw} {wid 80} {alist {}}} {
         ${ttk}checkbutton $w.f2.cb6 -text "On Top       " -variable ::___zz___(cb6,$ww) -command $tcmd 
         set ::___zz___(cb7,$ww) 0
         ${ttk}checkbutton $w.f2.cb7 -text "Manual Geom" -variable ::___zz___(cb7,$ww) -command $tcmd 
-        tooltip::tooltip $w.f1.b1  "Refreshes with new variable pattern\nalso used to update array indices\nalt-left-click for initial cmd"
+        tooltip::tooltip $w.f1.b1  \
+"\
+Refreshes with new variable pattern and used to
+update array indices alt-left-click for initial cmd
+
+Left click variable names output to stdout/console
+
+Control Left outputs variable  \u2192 List in order
+ALT       Left outputs variable  \u2192 Sorted List
+Shift     Left outputs variable  \u2192 Dictionary
+
+control right click makes cell inactive (when slow)\
+"
         tooltip::tooltip $w.f2.cb1 "Turn off all breakpoints, this applies to all code\nwindows, this checkbox is shared by all code windows"
         tooltip::tooltip $w.f2.cb2 "Automatic code listing updates"
         tooltip::tooltip $w.f2.cb3 "Turn off all LOCAL breakpoints, this applies to the \nprocedure/method in the title bar"
@@ -986,11 +1000,17 @@ proc bp+ {{message {*}}  {nobreak 0}  {nomessage 0} {nocount 0}} { ;# the 2nd, 3
                         }
                         if [catch {
                             set ok2 [uplevel $ok info vars]   ;# $::___zz___(queued_cmd)
-                            puts stderr "result from uplevel for: \u3010 $::___zz___(queued_cmd) \u3011 :" 
+                            set ok3 $::___zz___(queued_cmd)
+                            if { [string range $ok3 0 21] eq "set ::___zz___(entry1)" } {
+                                set ok3 [string range $ok3 24 end-1]
+                            }
+                            puts stderr "result from uplevel for: \u3010 $ok3 \u3011 :" 
                             set ok2 [uplevel $ok $::___zz___(queued_cmd)]   ;# alright do it in his level
-                            puts "\u3010$ok2\u3011"
+                            puts "\u3010[string range  $ok2 0 $::___zz___(max_size)]\u3011"
+                            set ::___zz___(entry1) [string range  $ok2 0 $::___zz___(max_size)]
                         } err_code] {
                             puts $err_code
+                            set ::___zz___(entry1) "error: $err_code"
                         }
                 } err_code] {
                         puts $err_code 
@@ -1483,7 +1503,7 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
             puts stderr "Uplevel entry is not complete"
         }
         return
-    } elseif { $func eq "right-click" } {  ;# this is used to set the uplevel box to expr <selection>
+    } elseif { $func eq "right-click" } {   ;# this is used to set the uplevel box to <selection>
         set selranges [.lbp_console.cframe.text tag ranges sel]
         if [catch {
         set selection [.lbp_console.cframe.text get {*}$selranges]
@@ -1491,11 +1511,13 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
             puts stderr $err_code
             return 
         }
-        if { $::___zz___(sel) eq "expr"} {
-        set ::___zz___(entry3) "expr $selection"
+        set shift [lindex $args 3]
+        if { $::___zz___(sel) eq "expr" || $shift} {
+            set ::___zz___(entry3) "set ::___zz___(entry1) \"$selection -> \[expr \{$selection\}\]\""
         focus -force .lbp_console.uframe.entry  
             .lbp_console.uframe.entry icursor 0
             .lbp_console.uframe.entry selection range 0 4
+            $::___zz___(util+) enter-callback 1 .lbp_console.uframe.entry Return
         } elseif { $::___zz___(sel) eq "copy"} {
 #            set ::___zz___(entry3) "$::___zz___(entry3)$selection"
             focus -force .lbp_console.uframe.entry  
@@ -1523,8 +1545,26 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
             .lbp_console.uframe.entry selection range 0 [expr 4+[string length $sel]]
         }
     } elseif { $func eq "double-click" } {  ;# this is used to set the go -N value, to run till line number
+        lassign $args widget xx yy subfunc
         set selranges [.lbp_console.cframe.text tag ranges sel]
         set selection [.lbp_console.cframe.text get {*}$selranges]
+        if { $xx > 100 } {
+            puts "it's not a line number /$selection/ sub=$subfunc"
+            if       { $subfunc == 1 } {
+                set ::___zz___(entry1) "cannot get value of |$selection|"
+                set ::___zz___(entry3) "set ::___zz___(entryz) \"$selection = |\[set $selection\]|\""
+                 $::___zz___(util+) enter-callback 1 .lbp_console.uframe.entry Return
+            } elseif { $subfunc == 2  } {
+            } elseif { $subfunc == 3  } {
+                set ::___zz___(entry1) "cannot get value of |$selection|"
+                set ::___zz___(entry3) "set ::___zz___(entryz) \"$selection = |\[parray $selection\]|\""
+                 $::___zz___(util+) enter-callback 1 .lbp_console.uframe.entry Return
+            } elseif { $subfunc == 4  } {
+            } else {
+                puts stderr "error unknown subfunc"
+            }
+            return
+        }
         if { [string is integer $selection] } {
             tailcall $::___zz___(go+) "-[expr {(   abs($selection)   )}]"
             return
@@ -1532,6 +1572,10 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
         puts stderr "Invalid double click selecton, not a number: $selection"
         return
 
+# <Double-Button-1>         1
+# <Shift-Double-Button-1>   2
+# <Alt-Double-Button-1>     3
+# <Control-Double-Button-1> 4
 
 # ------------------------------------------------------ reach end of a proc by trace callback  ------------------------
 
@@ -2111,6 +2155,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
 #       set font {TkFixedFont 12}
 
         toplevel .lbp_console
+        bind .lbp_console <Next>  [list $::___zz___(go+)] 
         frame .lbp_console.bframe ;# frame with buttons
         frame .lbp_console.cframe ;# frame with program text
 
@@ -2123,13 +2168,13 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         } else {
             set ttk ""
             set opts1 {-relief raised}
-            set opts2 {-font {courier 10}}
-            set opts3 {-font {courier 12}}
+            set opts2 {-font {courier 10 bold}}
+            set opts3 {-font {courier 12 bold}}
             set opts4 {-relief raised -bd 0} ;# labels
         }
 
         
-        text  .lbp_console.cframe.text -height 25 -wrap none -font $font -tabs "[expr {$::___zz___(tabsize)* [font measure $font 0]}] left" -tabstyle wordprocessor -width 24 -yscrollcommand [list .lbp_console.cframe.y set] -fg $::___zz___(black) -bg  $::___zz___(white)
+        text  .lbp_console.cframe.text -height 25 -wrap none -font $font -tabs "[expr {$::___zz___(tabsize)* [font measure $font 0]}] left" -tabstyle wordprocessor -width 24 -yscrollcommand [list .lbp_console.cframe.y set] -fg $::___zz___(black) -bg  $::___zz___(white)  -insertbackground $::___zz___(yellow)
         scrollbar .lbp_console.cframe.y -orient vertical -command [list  .lbp_console.cframe.text yview]
         
         ${ttk}button .lbp_console.bframe.b0    -text "EXIT"      -command {exit} ;# -image $image ;#
@@ -2165,6 +2210,10 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         $m add separator                    
         $m add command      -label     "${box1}Widget Browser"                  -command {vwdebug::wtree}                                       -font TkFixedFont
         $m add separator                    
+        $m add command      -label     "${box1}Save history"            -command [list vwdebug::hiss]       -font TkFixedFont
+        $m add command      -label     "${box1}Load history"            -command [list vwdebug::hisr]       -font TkFixedFont
+        $m add command      -label     "${box1}Uniq history"            -command [list vwdebug::hisclean]   -font TkFixedFont
+        $m add separator 
         $m add cascade      -label      "${box1}Extra" -menu $m.extra           -font TkFixedFont
             $m.extra add command      -label     "${box1}No bp Msgs - check all"            -command [list $::___zz___(util+) no-bp-messages-all]       -font TkFixedFont
             $m.extra add checkbutton  -label     "${boxc}No bp Msgs - default value"        -variable ::___zz___(bp_messages_default)   -indicatoron 1  -font TkFixedFont   
@@ -2195,7 +2244,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         set ::___zz___(entry3) ""
 
         frame .lbp_console.xframe ;# frame with command execute entry (I give up trying to get the buttons/entry to line up with the default font, so use a fixed size one)
-        ${ttk}button .lbp_console.xframe.lab3a -text "Command:" {*}$opts2 -command {set ::___zz___(entry1) "";focus .lbp_console.xframe.entry } ;#-font {courier 14}
+        ${ttk}button .lbp_console.xframe.lab3a -text "Cmd/Out:" {*}$opts2 -command {set ::___zz___(entry1) "";focus .lbp_console.xframe.entry } ;#-font {courier 14}
         ${ttk}entry .lbp_console.xframe.entry -text "entry" -textvariable ::___zz___(entry1) {*}$opts3 ; #set ::___zz___(entry1) "set args"
         bind  .lbp_console.xframe.lab3a <Button-3> [list $::___zz___(util+) enter-callback 2 .lbp_console.xframe.entry Return]
         bind  .lbp_console.xframe.entry <Key-Return> [list $::___zz___(util+) enter-callback 2 %W %K]
@@ -2366,8 +2415,12 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         pack .lbp_console.cframe    -side top   -expand 1 -fill both
         
         pack .lbp_console.cframe.text    -side left -expand 1 -fill both
-        bind .lbp_console.cframe.text  <Double-Button-1> [list after idle [list $::___zz___(util+) double-click %W %x %y]]
-        bind .lbp_console.cframe.text  <Button-3>        [list after idle [list $::___zz___(util+) right-click %W %x %y]]
+        bind .lbp_console.cframe.text  <Double-Button-1> [list after idle [list $::___zz___(util+) double-click %W %x %y 1]]
+        bind .lbp_console.cframe.text  <Shift-Double-Button-1> [list after idle [list $::___zz___(util+) double-click %W %x %y 2]]
+        bind .lbp_console.cframe.text  <Alt-Double-Button-1> [list after idle [list $::___zz___(util+) double-click %W %x %y 3]]
+        bind .lbp_console.cframe.text  <Control-Double-Button-1> [list after idle [list $::___zz___(util+) double-click %W %x %y 4]]
+        bind .lbp_console.cframe.text  <Button-3>        [list after idle [list $::___zz___(util+) right-click %W %x %y 0]]
+        bind .lbp_console.cframe.text  <Shift-Button-3>  [list after idle [list $::___zz___(util+) right-click %W %x %y 1]]
 #       bind .t   <Double-Button-1> [list after idle [list $foo double-click %W %x %y]]     
         pack .lbp_console.cframe.y   -side right -expand 0 -fill y
         
@@ -2383,7 +2436,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         if { $::___zz___(tooltips) != 0 } {
             if [catch {
                 package require tooltip
-                set delay 1000
+                set delay 2000
                 if {       $::___zz___(tooltips) != 0} {
                     set delay  $::___zz___(tooltips)
                 } elseif {  $::___zz___(tooltips) == 0 } {
@@ -2392,11 +2445,31 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                 if { $delay > 0 } {
                     tooltip::tooltip delay $delay
                     tooltip::tooltip  .lbp_console.xframe.labell "Show N lines below current line"
-                    tooltip::tooltip  .lbp_console.xframe.lab3a  "left=Clear the command entry, right=invoke\nenter a command. Runs at global level, however\nso be careful"
+                    tooltip::tooltip  .lbp_console.xframe.lab3a  "left \u261B Clear the command entry, right \u261B invoke\nenter a command. Runs at global level"
                     if { $::___zz___(sel) eq "expr" } {
-                        tooltip::tooltip  .lbp_console.uframe.lab3c  "left=Clear the uplevel entry, right=invoke\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr\n\n^N for level N will insert a script to display\nvariables from that level and output to stdout\n\nA selected text string in the code window\nfollowed by a right-click will copy\nexpr <selection> to this entry with focus"
+                        tooltip::tooltip  .lbp_console.uframe.lab3c  "Left=Clear the uplevel entry, right=invoke\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr\n\n^N for level N will insert a script to display\nvariables from that level and output to stdout\n\nA selected text string in the code window\nfollowed by a right-click will copy\nthe <selection> to this entry with focus\nDouble click a variable will evaluate it\nShift right click will evaluate an expression\nleft click and move then shift click for a selection (or drag)"
                     } else {
-                        tooltip::tooltip  .lbp_console.uframe.lab3c  "left=Clear the uplevel entry, right=invoke\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr\n\n^N for level N will insert a script to display\nvariables from that level and output to stdout\n\nA selected text string in the code window\nfollowed by a right-click will copy\nset $::___zz___(sel) <selection> to this entry with focus"
+                        tooltip::tooltip  .lbp_console.uframe.lab3c \
+"\
+left \u261B Clear the uplevel entry right \u261B invoke a Cmd 
+that runs in the context of the stopped proc.
+Result will be output in the console or stderr
+and the cmd/out entry below (left click it to clear)
+
+^N for level N will insert a macro script to display
+variables from that level and output to stdout
+
+A selected text string in the code window
+followed by a right-click will copy
+the <selection> to uplevel entry with focus
+
+Double click a variable will evaluate it
+Shift right click will evaluate a selection
+Alt-double-click an array variable \u261B parray var
+
+Can left click and move cursor then shift click
+to easily make a selection (or drag select)\
+"
                     }
 
                     tooltip::tooltip .lbp_console.bframe.b1     "Menu of utility commands, left click\ncan tearoff menu with ----------"     
@@ -2407,7 +2480,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
                     tooltip::tooltip .lbp_console.bframe.b4a     "toggle between tabsize 4 and 8"   
                     tooltip::tooltip .lbp_console.bframe.b5     "Open the Console - only if in main thread\nthere is no console in tasks"   
                     tooltip::tooltip .lbp_console.bframe.b6     "Stop a go+ command, if running N breakpoints \nor running to line number or run mode\nUse to view code with scrollbar"     
-                    tooltip::tooltip .lbp_console.bframe.b7     "Go - one step, or to next breakpoint\ndble click a line # to run to line\ncan use stop to break earlier" 
+                    tooltip::tooltip .lbp_console.bframe.b7     "Go - one step, or to next breakpoint\ndble click a line # to run to line\ncan use stop to break earlier\nShortcut page-down (Next)" 
                     tooltip::tooltip .lbp_console.bframe.b9     "Go - until manually stopped - the animated go\ncan be much slower, but visible" 
                     tooltip::tooltip .lbp_console.uframe.label  "Amount to delay in MS between break-points\nused when a g +/- is active or run mode \nto slow program for better animated viewing \ncan adjust with mousewheel or enter a valid integer\nif > 0 updates can occur in data windows since\nit enters event loop - 3 spinboxes: 100s 10s 1s"       
                     tooltip::tooltip .lbp_console.xframe.label  "Precision, number of statements / breakpoint\nwhen in Run mode. A 0/1 are the same\nif > 1 can miss goto line breaks (dbl click)\nhigher=faster running - 2 spinboxes: 10's and 1's"       
@@ -2890,6 +2963,41 @@ namespace eval vwdebug {
     variable cash
     variable the_choicex
     set cash(0) "inited"
+    proc hiss {args} {
+        set io [open .vwdebug w]
+        puts "save in [pwd].vwdebug"
+        if [catch {
+            set str $::___zz___(history,1)
+            puts $io $str
+        } err_code] {
+            puts $io ""
+        }
+        if [catch {
+            set str $::___zz___(history,2)
+            puts $io $str
+        } err_code] {
+            puts $io ""
+        }
+        close $io
+    }
+    proc hisr {args} {
+        set io [open .vwdebug r]
+        puts "restore from [pwd].vwdebug"
+        set ::___zz___(history,1) [gets $io]
+        set ::___zz___(history,2) [gets $io]
+        set ::___zz___(hnum,1) -1
+        set ::___zz___(hnum,2) -1
+        close $io
+    }
+    proc hisclean {args} {
+        set ::___zz___(history,1) [lsort -unique $::___zz___(history,1)]
+        set ::___zz___(history,2) [lsort -unique $::___zz___(history,2)]
+        puts "----"
+        puts [join [lreverse [lsort $::___zz___(history,1)] ] \n]
+        puts "----"
+        puts [join [lreverse [lsort $::___zz___(history,2)] ] \n]
+        return
+    }
     proc listinstr {args} {
         foreach item [array names ::___zz___ original,*] {
             set pr [lindex [split $item , ] end ]
@@ -3382,7 +3490,7 @@ if { $::___zz___(tooltipsbuiltin) } {
 # Initiated: 28 October 1996
 
 
-package require Tk 8.4
+#package require Tk 8.4
 package require msgcat
 
 #------------------------------------------------------------------------
@@ -3860,7 +3968,7 @@ proc ::tooltip::enableTag {w tag} {
 
 package provide tooltip 1.4.6
 }
-if { 0 } { ;# little standalone tester even worked in 8.7 nightly
+if { 0 } { ;# little standalone tester works in 9.0b1 
 interp alias {} v {} vw+ ;# shorthands since we might be typing these, optional, now commented out to avoid colisions
 interp alias {} g {} go+
 interp alias {} u {} util+
@@ -3909,7 +4017,7 @@ ttk::style theme use alt
         }
         set foo foo
         set bar bar
-        return
+        return "$foo + $bar"
     }
     proc tester2 {args} {
         puts hi1
@@ -3928,22 +4036,57 @@ ttk::style theme use alt
         }
         set foo foo
         set bar bar
+        return "$foo / $bar"
+    }
+    ::oo::class create testobj {
+        variable one
+        variable two
+        constructor {arg1 arg2} {
+            variable one
+            variable two
+            set one $arg1
+            set two $arg2
+            lbp+ in-constructor ;# cannot instrument a constructor, but can set a manual breakpoint here
         return
     }
-    instrument+ tester1
+        method combine {data} {
+            variable one
+            variable two
+            set foo  "one= |$one| data= |$data| two= |$two| "
+            return $foo
+        }
+        method test {data} {
+            variable one
+            variable two
+            set one  [expr {   $one + $two +$data + 1 }]
+            return $one
+        }
+    }
+    proc main {args} {
+# click the run button now (make this on-top for best results)
+        set xxx [tester1]
+        set zzz [tester2]
+        instrument+ tester1 ;# don't instrument until now, so should stop in constructor next
     instrument+ tester2
-    tester1
+        
+        set testerob [testobj new 111 222]
+        
+        vw+ ${testerob}:: class_tester ;# load a variable window with testobj's class variables
+        
+        set output1 [$testerob combine "input" ] ;# call our method with input string
+        set output2 [$testerob test 666 ]        ;# call our method with input number
+        tester1 ;# call our test routines a couple of times
     tester2
     tester1
     tester2
-    tester1
-    tester2
-    tester1
-    tester2
-    tester1
-    tester2
-    tester1
-    tester2
-    tester1
-    tester2
+        
+        util+ stop
+         
+# will stop from run mode here - choose the arrange windows in the menu
+        
+        return
+    }
+    instrument+ -class testobj * ;# instrument all methods in testobj
+    instrument+ main
+    main
 }
