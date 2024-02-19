@@ -1115,6 +1115,10 @@ proc $::___zz___(go+) {{skip -1} {window ""}} {
         if { $skip == -1 } {
             set skip -2 ;# can't stop at line 1, so this is the first real line anyway
         }
+    } else {        
+        if { $skip != -999999 && $skip != -1} { ;# reverse sign except for this, go -N will now mean go this many steps, go N will mean goto line N
+            set skip [expr {   0 - $skip   }]
+    }
     }
     if { $skip < -1 } {
         set ::___zz___(goto) [expr {(   0 - $skip   )}]
@@ -1702,7 +1706,7 @@ if { 1 } { ;# this is from the old debugger code, now in an ensemble instead of 
             return
         }
         if { [string is integer $selection] } {
-            tailcall $::___zz___(go+) "-[expr {(   abs($selection)   )}]"
+            tailcall $::___zz___(go+) "[expr {(   abs($selection)   )}]"
             return
         } 
         puts stderr "Invalid double click selecton, not a number: $selection"
@@ -2374,26 +2378,37 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
         
         bind .lbp_console.bframe.b1 <1> {tk_popup .lbp_console.menu1 %X %Y}
 if {$::___zz___(tooltips) != 0} {   
-        cooltip::tooltip $m -index 0         "this to tear off this menu"
-        cooltip::tooltip $m -index 16         "Coverage Counts will turn on line counts
-for any proc or method that is instrumented
-With any stepping or running, the counters
-will increment. (must leave bp's on however)
-    
-Can uncheck auto list for slightly faster and
-right click variables that update very fast to
-disable their -textvariable updates
-        
-Unchecking and rechecking will clear counters
-Must use unique method or proc names that are
-instrumented (instrument just ones to count)
-To get the results is is by command line 
-in console, or the cmd/out entry box.
-        
-\u261B util+ lreport ?-code? method|proc|pattern
-\u261B util+ lreport pattern|*
--code requires an exact name, not a pattern
-"
+        cooltip::tooltip $m -index 0         "Use this to tear off this menu"
+
+set tooltip_covcnts {##mark current 1.0 tagon red 1.0 tagon normal 1.0 text {Coverage Counts} 1.0 tagoff red 1.15 tagon black 1.15 text { will turn on line counts
+} 1.15 text {for any proc or method that is instrumented.
+} 2.0 text {While stepping or running, the counters
+} 3.0 text {will increment. (} 4.0 mark tk::anchor1 4.17 mark insert 4.17 text {leave bp's on)
+} 4.17 text {
+} 5.0 text {Can uncheck } 6.0 tagoff black 6.12 tagon red 6.12 text auto-list 6.12 tagoff red 6.21 tagon black 6.21 text { for slightly faster and
+} 6.21 tagoff black 7.0 tagon red 7.0 text {right click} 7.0 tagoff red 7.11 tagon black 7.11 text { variables that update a lot to
+} 7.11 text {disable their -textvariable updates
+} 8.0 text {
+} 9.0 text {Unchecking and rechecking } 10.0 tagoff normal 10.26 tagon italic 10.26 text {\u2611 } 10.26 tagoff italic 10.28 tagon normal 10.28 text {will clear counters 
+} 10.28 text {
+} 11.0 text {Should use unique method or proc names that are
+} 12.0 text {instrumented (instrument only ones to count)
+} 13.0 text {
+} 14.0 text {To report the results is by command line 
+} 15.0 text {in console, or the cmd/out entry box.
+} 16.0 text { 
+} 17.0 text {\u261b } 18.0 tagoff black 18.2 tagon red 18.2 text {util+ lreport} 18.2 tagoff red 18.15 tagon black 18.15 text { ?-code? method|proc|pattern
+} 18.15 text {\u261b } 19.0 tagoff black 19.2 tagon red 19.2 text {util+ lreport} 19.2 tagoff red 19.15 tagon black 19.15 text { pattern|*
+} 19.15 text {
+} 20.0 text {-code requires an exact name, not a pattern
+} 21.0 text {
+} 22.0 tagoff black 23.0 tagon red 23.0 text {Tip: } 23.0 tagoff red 23.5 tagon black 23.5 text {if program runs too slow, change } 23.5 tagoff black 23.38 tagon red 23.38 text precision 23.38 tagoff red 23.47 tagon black 23.47 text {
+} 23.47 text {to a higher value \u2192 50..999  This will result
+} 24.0 text {in counts that are more \u231a statistical, but will
+} 25.0 text {greatly speed up the program.
+} 26.0 tagoff normal 27.0 tagoff black 27.0}
+
+        cooltip::tooltip $m -index 16        $tooltip_covcnts
         cooltip::tooltip $m -index 17         "A template for the coverage counts report\nwill be placed in the cmd/out entry\ncan replace '-code name' with * for just counts"
 }
 #       button .lbp_console.bframe.b2    -text "Bottom"  -command {.lbp_console.cframe.text see end; .lbp_console.cframe.text mark set insert end} ;# -image $image ;#
@@ -2410,7 +2425,7 @@ in console, or the cmd/out entry box.
         set tcmd "wm attributes .lbp_console -topmost \$::___zz___(lbp-ontop)"
         ${ttk}checkbutton .lbp_console.bframe.b8    -text "On Top" -variable ::___zz___(lbp-ontop) -command $tcmd   ;# -image $image ;#
         ${ttk}checkbutton .lbp_console.bframe.b8a    -text "Tips" -variable ::___zz___(lbp-tips) -command {if {$::___zz___(lbp-tips)} {cooltip::tooltip on } else {cooltip::tooltip off  }}   ;# -image $image ;#
-        
+        cooltip::tooltip .lbp_console.bframe.b8a "Enable/disable tips"
         set ::___zz___(entry1) ""
         set ::___zz___(entry3) ""
 
@@ -2616,12 +2631,13 @@ in console, or the cmd/out entry box.
                     set delay 0
                 }
                 if { $delay > 0 } {
+set tooltip_lab3a {##mark current 1.0 tagon red 1.0 tagon normal 1.0 text Left 1.0 tagoff red 1.4 tagon black 1.4 text {  \u261b invoke, } 1.4 tagoff black 1.16 tagon red 1.16 text Right 1.16 tagoff red 1.21 tagon black 1.21 text { \u261b clear the command entry   
+} 1.21 text {Used to run a command at } 2.0 tagoff normal 2.25 tagoff black 2.25 tagon red 2.25 tagon italic 2.25 text global 2.25 tagoff italic 2.31 tagoff red 2.31 tagon black 2.31 tagon normal 2.31 text { level and to 
+} 2.31 text {display results of variables or expressions} 3.0 tagoff normal 3.43 tagoff black 3.43 tagon red 3.43 tagon italic 3.43 text {
+} 3.43 tagoff italic 4.0 tagoff red 4.0 mark insert 4.0 mark tk::anchor1 4.0}
                     cooltip::tooltip delay $delay
                     cooltip::tooltip  .lbp_console.xframe.labell "Show N lines below current line"
-                    cooltip::tooltip  .lbp_console.xframe.lab3a  "Left  \u261B invoke, Right \u261B clear the command entry   \nUsed to run a command at global level and to \ndisplay results of variables or expressions"
-                    if { $::___zz___(sel) eq "expr" } {
-                        cooltip::tooltip  .lbp_console.uframe.lab3c  "Left=Clear the uplevel entry, Right=invoke\nenter a command that runs in the stopped proc.\nthe result will be output in the console stderr\n\n^N for level N will insert a script to display\nvariables from that level and output to stdout\n\nA selected text string in the code window\nfollowed by a right-click will copy\nthe <selection> to this entry with focus\nDouble click a variable will evaluate it\nShift right click will evaluate an expression\nleft click and move then shift click for a selection (or drag)"
-                    } else {
+                    cooltip::tooltip  .lbp_console.xframe.lab3a  $tooltip_lab3a
 
 
 
@@ -2649,7 +2665,6 @@ set tooltip_uplevel {##mark current 1.0 tagon red 1.0 tagon normal 1.0 text Left
 } 21.0 tagoff normal 22.0 tagoff black 22.0}
 
                         cooltip::tooltip  .lbp_console.uframe.lab3c $tooltip_uplevel
-                    }
 
                     cooltip::tooltip .lbp_console.bframe.b1     "Menu of utility commands, left click\nWith a tearoff, but no tooltips in tearoff"     
 #                   cooltip::tooltip .lbp_console.bframe.b2     "Scroll to Bottom of the window"    
@@ -2659,28 +2674,34 @@ set tooltip_uplevel {##mark current 1.0 tagon red 1.0 tagon normal 1.0 text Left
                     cooltip::tooltip .lbp_console.bframe.b4a     "toggle between tabsize 4 and 8"   
                     cooltip::tooltip .lbp_console.bframe.b5     "Open the Console - only if in main thread\nthere is no console in tasks"   
                     cooltip::tooltip .lbp_console.bframe.b6     "Stop a go+ command, if running N breakpoints \nor running to line number or run mode\nUse to view code with scrollbar"     
-                    cooltip::tooltip .lbp_console.bframe.b7     "\
-Go/step - goes one step to next breakpoint - Instrumented 
-code has breakpoints at each line . Double click a line #
-will go to that line in the current proc (or method)
-Can use stop to break earlier \u261B Shortcut page-down (Next)
-Can enter commands at console or cmd/out
-go+ -N       \u261B   goto line number N in any proc/method
-go+  N        \u261B   go N steps 
-When given a proc or method, line number can be + or -
-line 1 will actually stop at line 2, line 1 is the proc def
-go+ 1 myproc     \u261B goto first line of myproc
-go+ 1 *                \u261B go to line 1 of next proc/method
-go+ 22 tester*    \u261B go to line 22 in  tester*
-go+ 10 class-method \u261B full class-method 
-go+ 10 *-method       \u261B method in any class" 
+
+set tooltip_go {##mark current 1.0 tagon normal 1.0 tagon red 1.0 text Go/step 1.0 tagoff red 1.7 tagon black 1.7 text { - goes to next breakpoint - Instrumented code has } 1.7 tagoff black 1.58 tagon red 1.58 text {
+} 1.58 tagoff red 2.0 tagon black 2.0 text {breakpoints at each line. Shortcut \u261b } 2.0 tagoff black 2.37 tagon red 2.37 text page-down 2.37 tagoff red 2.46 tagon black 2.46 text { (Next)
+} 2.46 text { 
+} 3.0 tagoff black 4.0 tagon red 4.0 text {Double click} 4.0 tagoff red 4.12 tagon black 4.12 text { on a line # will } 4.12 tagoff black 4.30 tagon red 4.30 text run 4.30 tagoff red 4.33 tagon black 4.33 text { to that line} 4.33 tagoff black 4.46 tagon red 4.46 text { } 4.46 tagoff red 4.47 tagon black 4.47 text { 
+} 4.47 text {Can use stop to break earlier 
+} 5.0 text {
+} 6.0 text {Commands entered at console or cmd/out: (can alias } 7.0 tagoff black 7.51 tagon red 7.51 text {go+ } 7.51 tagoff red 7.55 tagon black 7.55 text \u2192 7.55 tagoff black 7.56 tagon red 7.56 text { g} 7.56 tagoff red 7.58 tagon black 7.58 text {) 
+} 7.58 text {
+} 8.0 text {go+ } 9.0 tagoff black 9.4 tagon red 9.4 text -N 9.4 tagoff red 9.6 tagon black 9.6 text {             \u261b   go N total steps forward (in any proc) 
+} 9.6 text {
+} 10.0 text {go+  N             \u261b   goto line number N in current proc  
+} 11.0 text {
+} 12.0 text {go+ 1 myproc       \u261b goto first line of myproc
+} 13.0 text {go+ 1 *            \u261b go to line 1 of next proc/method
+} 14.0 text {go+ 22 tester*     \u261b go to line 22 in  tester*
+} 15.0 text {
+} 16.0 text {go+ 10 class-} 17.0 tagoff normal 17.13 tagoff black 17.13 tagon green 17.13 tagon italic 17.13 text method 17.13 tagoff italic 17.19 tagoff green 17.19 tagon black 17.19 tagon normal 17.19 text { \u261b line 10 of } 17.19 tagoff normal 17.33 tagoff black 17.33 tagon green 17.33 tagon italic 17.33 text method 17.33 tagoff italic 17.39 tagoff green 17.39 tagon black 17.39 tagon normal 17.39 text { in given class} 17.39 mark tk::anchor1 17.54 mark insert 17.54 text {
+} 17.54 text {go+ 10 *-} 18.0 tagoff normal 18.9 tagoff black 18.9 tagon green 18.9 tagon italic 18.9 text method 18.9 tagoff italic 18.15 tagoff green 18.15 tagon black 18.15 tagon normal 18.15 text {     \u261b line 10 of } 18.15 tagoff normal 18.33 tagoff black 18.33 tagon green 18.33 tagon italic 18.33 text method 18.33 tagoff italic 18.39 tagoff green 18.39 tagon black 18.39 tagon normal 18.39 text { in any class
+} 18.39 tagoff normal 19.0 tagoff black 19.0}
+                    cooltip::tooltip .lbp_console.bframe.b7  $tooltip_go   
                     cooltip::tooltip .lbp_console.bframe.b9     "Go - until manually stopped - the animated go\ncan be much slower, but visible" 
                     cooltip::tooltip .lbp_console.uframe.label  "Amount to delay in MS between break-points\nused when a g +/- is active or run mode \nto slow program for better animated viewing \ncan adjust with mousewheel or enter a valid integer\nif > 0 updates can occur in data windows since\nit enters event loop - 3 spinboxes: 100s 10s 1s"       
                     cooltip::tooltip .lbp_console.xframe.label  "Precision, number of statements / breakpoint\nwhen in Run mode. A 0/1 are the same\nif > 1 can miss goto line breaks (dbl click)\nhigher=faster running - 2 spinboxes: 10's and 1's"       
 
                 }
             } err_code] {
-                puts stderr "Tooltip error: $err_code" 
+                puts stderr "Cooltip error: $err_code" 
                 set ::___zz___(tooltips) 0
                 namespace eval tooltip {
                     proc tooltip {args} {}
@@ -3695,7 +3716,7 @@ namespace eval ::cooltip {
         array set G {
             enabled     1
             fade        1
-            background yellow
+            background lightyellow
             font        {FixedSys 10}
             FADESTEP    0.2
             FADEID      {}
@@ -3718,7 +3739,7 @@ namespace eval ::cooltip {
 
     # The extra ::hide call in <Enter> is necessary to catch moving to
     # child widgets where the <Leave> event won't be generated
-    bind Tooltip <Enter> [namespace code {
+    bind Cooltip <Enter> [namespace code {
         #cooltip::hide
     variable tooltip
     variable G
@@ -3730,9 +3751,9 @@ namespace eval ::cooltip {
     }]
 
     bind Menu <<MenuSelect>>    [namespace code { menuMotion %W }]
-    bind Tooltip <Leave>    [namespace code [list hide 1]] ; # fade ok
-    bind Tooltip <Any-KeyPress> [namespace code hide]
-    bind Tooltip <Any-Button>   [namespace code hide]
+    bind Cooltip <Leave>    [namespace code [list hide 1]] ; # fade ok
+    bind Cooltip <Any-KeyPress> [namespace code hide]
+    bind Cooltip <Any-Button>   [namespace code hide]
 }
 
 proc ::cooltip::tooltip {w args} {
@@ -3779,7 +3800,7 @@ proc ::cooltip::tooltip {w args} {
         if {![winfo exists $b]} {
         variable labelOpts
 
-        toplevel $b -class Tooltip
+                toplevel $b -class Cooltip
         if {[tk windowingsystem] eq "aqua"} {
             ::tk::unsupported::MacWindowStyle style $b help none
         } else {
@@ -3791,7 +3812,8 @@ proc ::cooltip::tooltip {w args} {
         wm positionfrom $b program
         wm withdraw $b
         eval [linsert $labelOpts 0 label $b.label]
-                            text $b.text -background yellow -relief raised -bd 2 -wrap none -font $G(font)
+                            text $b.text -background lightyellow -wrap none -font $G(font) 
+                            $b.text config -bd 2 -relief ridge -pady 6 -padx 4 -highlightthickness 3 -highlightcolor black -highlightbackground grey50 -relief solid -borderwidth 4 -highlightthickness 0 -padx 10 -pady 9 -spacing1 0 -spacing3 0
                             pack $b.text  -ipadx 1 ;#create our text widget instead of the label, leave label alone though, just don't pack it
                             set_tags $b.text ;# setup our style and color tags
 #               pack $b.text $b.label  -ipadx 1
@@ -3880,8 +3902,8 @@ proc ::cooltip::register {w args} {
         set tooltip($w) $key
         # Note: Add the necessary bindings only once.
         set tags [bindtags $w]
-        if {[lsearch -exact $tags "Tooltip"] == -1} {
-        bindtags $w [linsert $tags end "Tooltip"]
+            if {[lsearch -exact $tags "Cooltip"] == -1} {
+                bindtags $w [linsert $tags end "Cooltip"]
         }
         return $w
     }
@@ -3896,10 +3918,10 @@ proc ::cooltip::clear {{pattern .*}} {
     unset tooltip($w)
     if {[winfo exists $w]} {
         set tags [bindtags $w]
-        if {[set i [lsearch -exact $tags "Tooltip"]] != -1} {
+            if {[set i [lsearch -exact $tags "Cooltip"]] != -1} {
         bindtags $w [lreplace $tags $i $i]
         }
-        ## We don't remove TooltipMenu because there
+            ## We don't remove CooltipMenu because there
         ## might be other indices that use it
 
         # Withdraw the tooltip if we clear the current contained item
@@ -4013,7 +4035,8 @@ proc ::cooltip::menuMotion {w} {
 
     # The next two lines (all uses of LAST) are necessary until the
     # <<MenuSelect>> event is properly coded for Unix/(Windows)?
-    if {$cur == $G(LAST)} return
+#   puts "cur= |$cur| G(LAST)= |$G(LAST)| returning = [expr {  $cur == $G(LAST)    }]" ;# this is broken on 9.0b1 (if only 1 item)
+#    if {$cur == $G(LAST)} return ;# I don't grok this, but it breaks the code in 9.0b1, and w/o it, it works in 8.6 and 9.0 ughhhh
     set G(LAST) $cur
     # a little inlining - this is :hide
     after cancel $G(AFTERID)
@@ -4201,7 +4224,7 @@ if { 0 } { ;# little standalone tester works in 9.0b1
     set ::___zz___(linecounts) 1
     lappend ::___zz___(procnolist) tclLog myapp-shift wtree wtree_:_node_openclose history \
             cputs la lg ll lp ls lt lw hh ltree unknown pkg_mkIndex parray wtree_:_node_puts tclPkgUnknown tclPkgSetup        ;# list of proc's not to list for possible instrumentation, can lappend to this
-    
+#    lappend auto_path {C:\tclf\tclpkgs64\bwidget1.9.13}
     set ::___zz___(black) white        ;# the code window colors, black is the foreground, white the background, yellow backgound when proc done
     set ::___zz___(white) grey30        ;#
     set ::___zz___(yellow) {#ffffc0}   ;# background when proc done
@@ -4246,7 +4269,7 @@ set ::___zz___(use_ttk) 0           ;# if 1, some windows use the themed ttk, bu
         }
         set foo foo
         set bar bar
-        return "$foo + $bar"
+        return [string range "$foo + $bar" 1 end-1]
     }
     proc tester2 {args} {
         puts hi1
@@ -4265,7 +4288,7 @@ set ::___zz___(use_ttk) 0           ;# if 1, some windows use the themed ttk, bu
         }
         set foo foo
         set bar bar
-        return "$foo / $bar"
+        return [string range "$foo / $bar" 1 end-1]
     }
     ::oo::class create testobj {
         variable one
