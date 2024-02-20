@@ -2377,6 +2377,7 @@ proc lbp+ { {comment {}} {bpid {}} {tailed 0}} { ;# breakpoint from within a pro
             $m.extra add radiobutton  -label     "${boxr}Larger Data  Font"                 -variable ::___zz___(fontsize)  -value 12       -font TkFixedFont
         
         bind .lbp_console.bframe.b1 <1> {tk_popup .lbp_console.menu1 %X %Y}
+        bind .lbp_console.menu1 <<MenuSelect>> {::namespace inscope ::cooltip { menuMotion %W }}
 if {$::___zz___(tooltips) != 0} {   
         cooltip::tooltip $m -index 0         "Use this to tear off this menu"
 
